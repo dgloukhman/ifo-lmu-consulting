@@ -45,7 +45,7 @@ split_tibbles
 
 read_ifo_data <- function(DATA_PATH = "data"){
   
-  filepaths <- list.files('data', full.names = TRUE)  
+  filepaths <- list.files(DATA_PATH, full.names = TRUE)  
 ifo_tbl <- filepaths %>% 
   map(.read_single_excel) %>% 
   flatten() %>% 
@@ -53,4 +53,89 @@ ifo_tbl <- filepaths %>%
 ifo_tbl
 }
 
-ifo_tbl <- read_ifo_data()
+# preprocess ifo data
+preprocess_ifo_data <- function(df) {
+  df <- df %>%
+    # Convert to proper Date format, adding 01 as a day to every month
+    mutate(
+      date = as.Date(paste0("01/", date), format = "%d/%m/%Y")
+    ) %>%
+    
+    # Remove '§BDS' from the end of the last 15 column names
+    rename_with(
+      ~ sub("§BDS$", "", .x),  
+      .cols = tail(names(df), 15)
+    ) %>%
+    
+    # make sure all values are numeric
+    mutate(across(tail(names(.), 15), as.numeric))
+  
+  df <- df %>% select(-BES, -PRS)
+  
+  na_rows_df <- df[apply(is.na(df), 1, any), ]
+  
+  print('Filtered out all subaggregates with NaN values: (Temporary)')
+  print(unique(na_rows_df$industry_code))
+  
+  df <- df %>%
+    filter(!industry_code %in% unique(na_rows_df$industry_code))
+}
+
+get_industry_dict_df <- function(data_path, questions = FALSE) {
+  # Function retuns df with industries and according industry codes. 
+  # Returns similar df with question titles and codes, if questions = TRUE
+  # Useful for plotting or own overview 
+  
+  # collect paths to all excels in Data file   
+  filepaths <- list.files(data_path, full.names = TRUE)  
+  
+  # Function to extract code-title pairs from one Excel file
+  .extract_pairs <- function(file) {
+    # Read just the first 3 rows
+    df <- read_excel(file, range = cell_rows(2:3), col_names = FALSE)
+    
+    # Only take columns from the second one onwards
+    codes <- df[1, -1]
+    titles <- df[2, -1]
+    
+    # Create a tibble of code-title pairs with filename
+    tibble(
+      file = basename(file),
+      code = as.character(unlist(codes)),
+      title = as.character(unlist(titles))
+    )
+  }
+  
+  # apply function to all excel files and create tiddle
+  all_pairs <- map_dfr(filepaths, .extract_pairs)
+  
+  # split into industry code & title and question code & title 
+  code_title_tdl <- all_pairs %>%
+    separate(code, into = c("industry_code","question_code"), sep = ":")  %>%
+    
+    separate(
+      title,
+      into = c("question_title", "industry_title"),
+      sep = "\\s*(\\(D\\)|\\(S\\))\\s*",
+      remove = FALSE,
+      extra = "merge"
+    ) %>%
+    
+    select(-title)
+  
+  if (questions == TRUE) {
+    question_df <- code_title_tdl %>%
+      select(question_code, question_title) %>%
+      distinct()
+    
+    question_df$question_code <- sub("§BDS", "", question_df$question_code)
+    return(question_df)
+  }
+  
+  # Extract unique pairs of industry code and industry title
+  industries <- code_title_tdl %>%
+    select(industry_code, industry_title) %>%
+    distinct()
+}
+
+#ifo_tbl <- read_ifo_data()
