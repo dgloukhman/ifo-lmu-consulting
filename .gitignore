@@ -175,3 +175,10 @@ cython_debug/
 
 .DS_Store
 .Rproj.user
+
+# R / RStudio ignores
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+*.Rproj
