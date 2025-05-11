@@ -74,6 +74,7 @@ preprocess_ifo_data <- function(df) {
   
   na_rows_df <- df[apply(is.na(df), 1, any), ]
   
+  print('Preprocessing')
   print('Filtered out all subaggregates with NaN values: (Temporary)')
   print(unique(na_rows_df$industry_code))
   
@@ -91,8 +92,8 @@ get_industry_dict_df <- function(data_path, questions = FALSE) {
   
   # Function to extract code-title pairs from one Excel file
   .extract_pairs <- function(file) {
-    # Read just the first 3 rows
-    df <- read_excel(file, range = cell_rows(2:3), col_names = FALSE)
+    # Read just the first 3 rows (suppressing Messages, due to weird output when assigning colnames)
+    df <- suppressMessages(read_excel(file, range = cell_rows(2:3), col_names = FALSE))
     
     # Only take columns from the second one onwards
     codes <- df[1, -1]
@@ -136,6 +137,9 @@ get_industry_dict_df <- function(data_path, questions = FALSE) {
   industries <- code_title_tdl %>%
     select(industry_code, industry_title) %>%
     distinct()
+  
+  industries$industry_title <- sub(" BD SBR","",industries$industry_title)
+  industries
 }
 
 #ifo_tbl <- read_ifo_data()
