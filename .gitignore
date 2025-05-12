@@ -182,3 +182,6 @@ cython_debug/
 .Ruserdata
 .Rproj.user/
 *.Rproj
+
+# Files
+JakobsTrials/
