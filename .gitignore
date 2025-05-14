@@ -185,6 +185,7 @@ cython_debug/
 
 # Files
 JakobsTrials/
+Test.R
 
 # Ignore html outputs of Notebooks, as they dont render 
 *.html
