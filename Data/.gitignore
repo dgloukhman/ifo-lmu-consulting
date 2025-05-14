@@ -2,3 +2,5 @@
 *
 # Except this file
 !.gitignore
+!industries_codes_titles.csv
+!questions_codes_titles.csv

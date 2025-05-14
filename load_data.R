@@ -3,54 +3,51 @@
 library("readxl")
 library("purrr")
 
-.read_single_excel <- function(pathname){
+.read_single_excel <- function(pathname) {
   #Reads in file from pathname and returns a list of tibbles
 
-df <- read_excel(pathname ,skip = 1 )
-df <- df %>% slice(-1)
-dates <- df[1]
-dates <- pull(df,1)
-df <- df[-1]
-split_tibbles <- map(
-  seq(1, ncol(df), by = 15), 
-  ~ df[, .x:min(.x+14, ncol(df))]
-  ) %>% 
-  
-  map(.augument_single_tibble, dates=dates)
+  df <- read_excel(pathname, skip = 1)
+  df <- df %>% slice(-1)
+  dates <- df[1]
+  dates <- pull(df, 1)
+  df <- df[-1]
+  split_tibbles <- map(
+    seq(1, ncol(df), by = 15),
+    ~ df[, .x:min(.x + 14, ncol(df))]
+  ) %>%
 
-split_tibbles
+    map(.augument_single_tibble, dates = dates)
 
+  split_tibbles
 }
 
 
-.augument_single_tibble <- function(tib,dates){
-#  adds industry_code and dates to tibble
+.augument_single_tibble <- function(tib, dates) {
+  #  adds industry_code and dates to tibble
 
   cols <- names(tib)
-  cols <- str_split(cols,':', simplify = TRUE)
+  cols <- str_split(cols, ':', simplify = TRUE)
   industry_code <- cols[1]
-  if (any(cols[,1] != industry_code)){
+  if (any(cols[, 1] != industry_code)) {
     print("Error: industries in columns do not match")
   }
-  names(tib) <- cols[,2]
+  names(tib) <- cols[, 2]
 
-  tib  %>% 
+  tib %>%
     mutate(
       date = dates,
       industry_code = industry_code
-    ) %>% 
+    ) %>%
     select(date, industry_code, everything())
-  
 }
 
-read_ifo_data <- function(DATA_PATH = "data"){
-  
-  filepaths <- list.files(DATA_PATH, full.names = TRUE)  
-ifo_tbl <- filepaths %>% 
-  map(.read_single_excel) %>% 
-  flatten() %>% 
-  bind_rows()
-ifo_tbl
+read_ifo_data <- function(DATA_PATH = "data") {
+  filepaths <- list.files(DATA_PATH, pattern = "\\.xlsx$", full.names = TRUE)
+  ifo_tbl <- filepaths %>%
+    map(.read_single_excel) %>%
+    flatten() %>%
+    bind_rows()
+  ifo_tbl
 }
 
 # preprocess ifo data
@@ -60,45 +57,49 @@ preprocess_ifo_data <- function(df) {
     mutate(
       date = as.Date(paste0("01/", date), format = "%d/%m/%Y")
     ) %>%
-    
+
     # Remove '§BDS' from the end of the last 15 column names
     rename_with(
-      ~ sub("§BDS$", "", .x),  
+      ~ sub("§BDS$", "", .x),
       .cols = tail(names(df), 15)
     ) %>%
-    
+
     # make sure all values are numeric
     mutate(across(tail(names(.), 15), as.numeric))
-  
+
   df <- df %>% select(-BES, -PRS)
-  
+
   na_rows_df <- df[apply(is.na(df), 1, any), ]
-  
+
   print('Preprocessing')
   print('Filtered out all subaggregates with NaN values: (Temporary)')
   print(unique(na_rows_df$industry_code))
-  
+
   df <- df %>%
     filter(!industry_code %in% unique(na_rows_df$industry_code))
 }
 
 get_industry_dict_df <- function(data_path, questions = FALSE) {
-  # Function retuns df with industries and according industry codes. 
+  # Function retuns df with industries and according industry codes.
   # Returns similar df with question titles and codes, if questions = TRUE
-  # Useful for plotting or own overview 
-  
-  # collect paths to all excels in Data file   
-  filepaths <- list.files(data_path, full.names = TRUE)  
-  
+  # Useful for plotting or own overview
+
+  # collect paths to all excels in Data file
+  filepaths <- list.files(data_path, full.names = TRUE)
+
   # Function to extract code-title pairs from one Excel file
   .extract_pairs <- function(file) {
     # Read just the first 3 rows (suppressing Messages, due to weird output when assigning colnames)
-    df <- suppressMessages(read_excel(file, range = cell_rows(2:3), col_names = FALSE))
-    
+    df <- suppressMessages(read_excel(
+      file,
+      range = cell_rows(2:3),
+      col_names = FALSE
+    ))
+
     # Only take columns from the second one onwards
     codes <- df[1, -1]
     titles <- df[2, -1]
-    
+
     # Create a tibble of code-title pairs with filename
     tibble(
       file = basename(file),
@@ -106,14 +107,14 @@ get_industry_dict_df <- function(data_path, questions = FALSE) {
       title = as.character(unlist(titles))
     )
   }
-  
+
   # apply function to all excel files and create tiddle
   all_pairs <- map_dfr(filepaths, .extract_pairs)
-  
-  # split into industry code & title and question code & title 
+
+  # split into industry code & title and question code & title
   code_title_tdl <- all_pairs %>%
-    separate(code, into = c("industry_code","question_code"), sep = ":")  %>%
-    
+    separate(code, into = c("industry_code", "question_code"), sep = ":") %>%
+
     separate(
       title,
       into = c("question_title", "industry_title"),
@@ -121,24 +122,24 @@ get_industry_dict_df <- function(data_path, questions = FALSE) {
       remove = FALSE,
       extra = "merge"
     ) %>%
-    
+
     select(-title)
-  
+
   if (questions == TRUE) {
     question_df <- code_title_tdl %>%
       select(question_code, question_title) %>%
       distinct()
-    
+
     question_df$question_code <- sub("§BDS", "", question_df$question_code)
     return(question_df)
   }
-  
+
   # Extract unique pairs of industry code and industry title
   industries <- code_title_tdl %>%
     select(industry_code, industry_title) %>%
     distinct()
-  
-  industries$industry_title <- sub(" BD SBR","",industries$industry_title)
+
+  industries$industry_title <- sub(" BD SBR", "", industries$industry_title)
   industries
 }
 
