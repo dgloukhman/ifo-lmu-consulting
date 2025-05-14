@@ -1,7 +1,7 @@
 # install.packages("tidyverse")
 # install.packages("readxl")
 library("readxl")
-library("purrr")
+library("tidyverse")
 
 .read_single_excel <- function(pathname) {
   #Reads in file from pathname and returns a list of tibbles
