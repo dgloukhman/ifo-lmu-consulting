@@ -9,9 +9,9 @@ Notebook for some basic exploration of all two-digit aggregates for business sit
 library(here) # great library to locate project root
 
 # source functions
-source(here("load_data.R"))
-source(here("summary_tools.R"))
-source(here("visualization.R"))
+source(here("GeneralUtils","load_data.R"))
+source(here("GeneralUtils","summary_tools.R"))
+source(here("GeneralUtils","visualization.R"))
 
 # load data and 'dictionaries' for industry
 data_path <- here("Data")

@@ -1,9 +1,6 @@
 # script for basic univariate and multivariate summary functions
-library(tidyverse)
+library("tidyverse")
 library("readxl")
-library("purrr")
-library(ggplot2)
-
 
  univariate_summaries <- function(df, industry_codes, question_codes, industry_dict = NULL, questions_dict = NULL) {
   # Function to get summaries about singles time series, can give multiple industry codes and questions
