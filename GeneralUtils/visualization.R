@@ -1,5 +1,4 @@
 library(tidyverse)
-library(ggplot2)
 
 plot_industry_timeseries <- function(df, industry_codes, question_code, industry_dict = NULL, questions_dict = NULL) {
   # Plot time series for multiple industries for one question

@@ -1,10 +1,9 @@
-source("load_data.R")
-source("summary_tools.R")
-source("visualization.R")
+library(here)
+source(here("GeneralUtils","load_data.R"))
 
 # load in data and preprocess
-data_path <- '/Users/jakobfreytag/Desktop/R Directionaries/ifo Time Series/Data'
-data_path_dict <- '/Users/jakobfreytag/Desktop/R Directionaries/ifo Time Series/Data/'
+data_path <- here("Data")
+data_path_dict <- here("Data")
 ifo_tbl <- read_ifo_data(data_path)
 ifo_tbl <- preprocess_ifo_data(ifo_tbl)
 
