@@ -3,3 +3,7 @@ readxl
 here
 BCDating
 MSwM
+tseries
+urca
+tsibble
+fabletools

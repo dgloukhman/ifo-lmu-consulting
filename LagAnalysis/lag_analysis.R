@@ -1,41 +1,82 @@
-library("tidyverse")
-library("ggplot2")
+# ====================================================================
+# General Setup
+
+# --------------------------------------------------------------------
+# Installs necessary packages
 source("GeneralUtils/setup_packages.R")
 install_packages_from_file()
 
-### 0. Data Preparattion ###
+# --------------------------------------------------------------------
+# Necessary libaries
+library("tidyverse")
+library("tsibble")
+library("tseries")
+library("ggplot2")
+
+# --------------------------------------------------------------------
+
+#### 0. Data Preparation ####
 source("GeneralUtils/load_data.R")
 source("GeneralUtils/structure_analysis.R")
-ifo_tbl <- read_ifo_data()
-ifo_tbl <- ifo_tbl %>% preprocess_ifo_data()
 
-# Compute levels and prefixes
-ifo_tbl <- ifo_tbl %>%
-  mutate(
-    level = vapply(industry_code, get_level, integer(1))
-  )
+ifo_tbl <- read_ifo_data() %>%
+  preprocess_ifo_data() %>%
+  mutate(level = vapply(industry_code, get_level, integer(1)))
 
-# Filter on Level 0 and Level 2
+# ====================================================================
+# Level 2 Analysis
+
+# --------------------------------------------------------------------
+# Setup 
+
+# Filter Level 0 and 2 for sector aggregates
 ifo_tbl_l2 <- ifo_tbl %>%
   filter(level %in% c(0, 2)) %>%
-  select(date, industry_code, KLD, level)
+  select(date, industry_code, KLD)
 
-# Wide format 
-ifo_tbl_l2_wide <- ifo_tbl_l2 %>% select(-level) %>%
+# Transform to wide format
+ifo_tbl_l2_wide <- ifo_tbl_l2 %>%
   pivot_wider(names_from = industry_code, values_from = KLD)
 
-### 1. Analyze Lag Structure ###
-# - Anylaze Lag Structure between main index and level 2 compound indicies
-# - Analyze General Lag Structure and Turning Point Lag Structure
-# - Short-term and long-term lag analysis
+# Convert to tsibble: requires explicit time index
+ifo_tsbl_l2 <- as_tsibble(ifo_tbl_l2_wide, index = date)
 
-## Set Up 
+# Create 1st Diff tsibble
+
+# Set target list
 main_index <- "C0000000"
-l2_targets <- setdiff(names(ifo_tbl_l2_wide), c("date", main_index))
-max_lag <- 24
+l2_targets <- setdiff(colnames(ifo_tsbl_l2), c("date", main_index))
 
-## Cross-Correlation 
-# Function to compute full lag correlation for one sector
+# Max lag for tests
+max_lag <- 12
+
+# --------------------------------------------------------------------
+# Test Stationarity and Cointegration
+
+source("LagAnalysis/stationarity_cointegration.R")
+
+# Test stationarity: ADF test for all columns (excluding date)
+adf_results <- as_tibble(ifo_tsbl_l2) %>% run_adf_tests()
+
+# Test cointegration: Johansen Cointegration Test (VECM) with Main Index
+cointegration_results <- as_tibble(ifo_tsbl_l2) %>% run_cointegration_tests(main_index = main_index)
+
+# Merge both tables
+diagnostic_tbl <- adf_results %>%
+  inner_join(cointegration_results, by = "industry_code") %>%
+  mutate(
+    model_type = case_when(
+      adf_is_stationary ~ "VAR",
+      !adf_is_stationary & coint_cointegrated ~ "VECM",
+      !adf_is_stationary & !coint_cointegrated ~ "DIFF+VAR",
+      TRUE ~ NA_character_
+    )
+  )
+
+# --------------------------------------------------------------------
+
+### Cross-Correlation 
+## Function to compute full lag correlation for one sector
 get_ccf_full <- function(target_code) {
   x <- ifo_tbl_l2_wide[[target_code]]
   y <- ifo_tbl_l2_wide[[main_index]]
@@ -89,7 +130,19 @@ ggplot(ccf_full_sorted, aes(x = industry_code, y = lag, fill = correlation)) +
        x = "Industry Code (sorted by peak lag)", y = "Lag (months)") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
 
-### 2. Model main index with level 2 compound indicies
+### Granger Causality
+
+# ====================================================================
+# Level 3 Analysis
+
+
+
+# ====================================================================
+#### 1. Analyze Lag Structure #####
+# - Anylaze Lag Structure between main index and level 2 compound indicies
+# - Analyze General Lag Structure and Turning Point Lag Structure
+# - Short-term and long-term lag analysis
+#### 2. Model main index with compound indicies ####
 # - General model 
 # - Model based on Leading Indices only 
 # - Model based on Leading + Coinciding Indices (Regression on Residuals)
@@ -97,8 +150,10 @@ ggplot(ccf_full_sorted, aes(x = industry_code, y = lag, fill = correlation)) +
 
 
 
-### 3. Refining Model 
+#### 3. Refining Model ####
 # - Select most important indices (LASSO/Elastic-Net) 
 # - Allow reweighting of compound indices (Grouped Loss)
 # - Model Turning Point Prediction and Normal Prediction separatly 
 #   (Variance based Band Filter or Markov-Switching based Filter)
+
+# ====================================================================
