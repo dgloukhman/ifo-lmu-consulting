@@ -5,14 +5,21 @@ library(tidyverse)
 
 # Function to determine hierarchy level (self-contained)
 get_level <- function(code) {
-  digits <- substring(code, 2)  # remove leading letter
-  if (grepl("[A-Za-z]", digits)) {
-    return(NA_integer_)
-  }
-  # Inline rtrim: remove trailing zeros
+  # Remove leading letter
+  digits <- substring(code, 2)
+  
+  # Return NA if non-digits found
+  if (grepl("[^0-9]", digits)) return(NA_integer_)
+  
+  # Remove trailing zeros
   digits <- sub("0+$", "", digits)
-  level <- nchar(digits)
-  return(as.integer(max(0, level - 1)))
+  
+  # If empty after stripping, it's all zeros → Level 0
+  if (digits == "") return(0L)
+  
+  # Level logic for Level 1+
+  len <- nchar(digits)
+  return(max(1L, len - 1L))
 }
 
 ### Old Code ###
