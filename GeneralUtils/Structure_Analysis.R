@@ -1,83 +1,40 @@
-library(tidyverse)
+# ====================================================================
+# Hierarchy Utility: Determine Level of Industry Code
+# Description:
+#   Extracts the hierarchical level from standardized industry codes.
+#   The industry code format assumes a leading character (e.g., 'C'),
+#   followed by digits where each level is encoded in digit precision.
+#   Example: C0000000 = Level 0, C1000000 = Level 1, C1100000 = Level 1
+#            C1110000 = Level 2, etc.
+#   Input:  Character vector of industry codes (e.g., "C1000000")
+#   Output: Integer indicating hierarchy level (0 = root level)
+# ====================================================================
 
-# # Load data
-# industry_data <- read_csv("Data/industries_codes_titles.csv")
-
-# Function to determine hierarchy level (self-contained)
+# --------------------------------------------------------------------
+# Function: get_level
+# Purpose:  Classify an industry code into a hierarchical level
+# Arguments:
+#   - code: Single string (e.g., "C1000000") representing an industry code
+# Returns:
+#   - Integer: Hierarchy level (0 for root, 1+ for sublevels)
+#              Returns NA if code is invalid (e.g., contains letters in numeric part)
+# --------------------------------------------------------------------
 get_level <- function(code) {
-  # Remove leading letter
+  # Remove the leading character (typically 'C')
   digits <- substring(code, 2)
   
-  # Return NA if non-digits found
+  # If any non-numeric characters are present after stripping → invalid code
   if (grepl("[^0-9]", digits)) return(NA_integer_)
   
-  # Remove trailing zeros
+  # Strip all trailing zeros which act as padding (not level-defining)
   digits <- sub("0+$", "", digits)
   
-  # If empty after stripping, it's all zeros → Level 0
+  # If nothing remains after stripping → it's the root level (e.g., "C0000000")
   if (digits == "") return(0L)
   
-  # Level logic for Level 1+
+  # Count remaining digits: e.g., "1" → len = 1, → Level = max(1, 1 - 1) = 1
   len <- nchar(digits)
+  
+  # Compute level: at least Level 1 if any digits remain, subtract 1 for offset
   return(max(1L, len - 1L))
 }
-
-### Old Code ###
-
-# # Function to extract prefix used for hierarchy comparison (self-contained)
-# get_prefix <- function(code) {
-#   core <- substring(code, 2)  # remove leading 'C'
-#   sub("0+$", "", core)        # inline rtrim: strip trailing zeros
-# }
-# 
-# # Compute levels and prefixes
-# industry_data <- industry_data %>%
-#   mutate(
-#     level = vapply(industry_code, get_level, integer(1)),
-#     prefix = get_prefix(industry_code)
-#   )
-
-# # Identify leaf nodes (no other code starts with this prefix and is longer)
-# industry_data <- industry_data %>%
-#   mutate(
-#     is_leaf = !prefix %in%
-#       prefix[map_lgl(prefix, function(p) {
-#         any(prefix != p & startsWith(prefix, p))
-#       })]
-#   )
-# 
-# # Count total number of leaf nodes
-# total_leaf_nodes <- industry_data %>%
-#   filter(is_leaf) %>%
-#   nrow()
-# 
-# # Print result
-# cat("Total number of leaf (last-level) industry codes:", total_leaf_nodes, "\n")
-
-# # ==== Plot 1: Number of codes per level ====
-# level_counts <- industry_data %>%
-#   count(level)
-# 
-# ggplot(level_counts, aes(x = factor(level), y = n)) +
-#   geom_bar(stat = "identity", fill = "steelblue") +
-#   labs(
-#     title = "Number of Industries per Hierarchical Level",
-#     x = "Hierarchy Level (1 = Broadest)",
-#     y = "Number of Industries"
-#   ) +
-#   theme_minimal()
-
-# # ==== Plot 2: Number of leaf nodes per level ====
-# leaf_counts <- industry_data %>%
-#   filter(is_leaf) %>%
-#   count(level)
-# 
-# ggplot(leaf_counts, aes(x = factor(level), y = n)) +
-#   geom_bar(stat = "identity", fill = "darkgreen") +
-#   labs(
-#     title = "Number of Leaf (Last-Level) Industry Codes per Hierarchy Level",
-#     x = "Hierarchy Level",
-#     y = "Number of Leaf Nodes"
-#   ) +
-#   theme_minimal()
-

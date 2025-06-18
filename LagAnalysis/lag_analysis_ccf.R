@@ -235,30 +235,3 @@ ggplot(ccf_full_sorted, aes(x = industry_code, y = lag, fill = correlation)) +
   labs(title = "CCF Heatmap: Highlighted Peak Correlations",
        x = "Industry Code (sorted by peak lag)", y = "Lag (months)") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
-
-
-# ====================================================================
-# Lagged Regression / Transfer Function Models
-
-
-
-# ====================================================================
-#### 1. Analyze Lag Structure #####
-# - Anylaze Lag Structure between main index and level 2 compound indicies
-# - Analyze General Lag Structure and Turning Point Lag Structure
-# - Short-term and long-term lag analysis
-#### 2. Model main index with compound indicies ####
-# - General model 
-# - Model based on Leading Indices only 
-# - Model based on Leading + Coinciding Indices (Regression on Residuals)
-# - Full Prediction and only Turning Point Prediction
-
-
-
-#### 3. Refining Model ####
-# - Select most important indices (LASSO/Elastic-Net) 
-# - Allow reweighting of compound indices (Grouped Loss)
-# - Model Turning Point Prediction and Normal Prediction separatly 
-#   (Variance based Band Filter or Markov-Switching based Filter)
-
-# ====================================================================
