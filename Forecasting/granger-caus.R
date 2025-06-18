@@ -7,7 +7,6 @@ LEVEL <- 3
 
 ifo_tbl <- read_ifo_data() %>%
   preprocess_ifo_data() %>%
-  mutate(level = vapply(industry_code, get_level, integer(1))) %>%
   filter(level == LEVEL)
 
 kld_tsbl <- ifo_tbl %>%
@@ -85,5 +84,4 @@ for (lag in lags) {
 }
 
 pval_matrix <- granger_pval_matrix(kld_tsbl, max_lag = 1)
-granger_causes <- rowSums(pval_matrix) 
-
+granger_causes <- rowSums(pval_matrix)

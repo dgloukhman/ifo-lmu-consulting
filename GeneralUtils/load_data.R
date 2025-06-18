@@ -74,7 +74,8 @@ preprocess_ifo_data <- function(df) {
   print(unique(na_rows_df$industry_code))
 
   df <- df %>%
-    filter(!industry_code %in% unique(na_rows_df$industry_code))
+    filter(!industry_code %in% unique(na_rows_df$industry_code)) %>%
+    mutate(level = vapply(industry_code, get_level, integer(1)))
 }
 
 get_level <- function(code) {
