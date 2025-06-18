@@ -1,7 +1,7 @@
 source("utils/setup_packages.R")
 install_packages_from_file()
 source(here("utils", "load_data.R"))
-source("utils/structure_analysis.R")
+
 
 LEVEL <- 3
 

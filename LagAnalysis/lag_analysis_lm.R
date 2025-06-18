@@ -20,7 +20,7 @@ library("feasts")
 # Data Preparation
 
 source("utils/load_data.R")
-source("utils/structure_analysis.R")
+
 
 # Read Data
 ifo_tbl <- read_ifo_data() %>%
