@@ -79,7 +79,7 @@ run_cointegration_tests <- function(data_tbl, main_index, lag = 2) {
         coint_cointegrated = test_stat > crit_val
       )
     }, error = function(e) {
-      # Handle errors gracefully (e.g., rank deficiency or data issues)
+      # Handle errors (e.g., rank deficiency or data issues)
       tibble(
         industry_code = code,
         coint_statistic = NA_real_,
