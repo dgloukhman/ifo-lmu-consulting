@@ -4,7 +4,7 @@
 # --------------------------------------------------------------------
 # Installs necessary packages
 
-source("GeneralUtils/setup_packages.R")
+source("utils/setup_packages.R")
 install_packages_from_file()
 
 # --------------------------------------------------------------------
@@ -17,15 +17,15 @@ library("ggplot2")
 library("feasts")
 
 # --------------------------------------------------------------------
-# Data Preparation 
+# Data Preparation
 
-source("GeneralUtils/load_data.R")
-source("GeneralUtils/structure_analysis.R")
+source("utils/load_data.R")
+
 
 # Read Data
 ifo_tbl <- read_ifo_data() %>%
-  preprocess_ifo_data() %>%
-  mutate(level = vapply(industry_code, get_level, integer(1)))
+  preprocess_ifo_data()
+
 
 # Create tsibble
 ifo_tsbl <- ifo_tbl %>% as_tsibble(key = industry_code, index = date)
@@ -48,7 +48,5 @@ ifo_tsbl_l2 <- ifo_tsbl %>%
 ifo_tsbl_l2_wide <- ifo_tsbl_l2 %>%
   pivot_wider(names_from = industry_code, values_from = KLD)
 
-
 # ====================================================================
 # Lagged Regression / Transfer Function Models
-
