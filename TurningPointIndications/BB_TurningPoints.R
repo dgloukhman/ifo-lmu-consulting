@@ -1,10 +1,10 @@
 # function to install missing packages for project in general
 library(here)
-source(here("GeneralUtils", "setup_packages.R"))
+source(here("utils", "setup_packages.R"))
 
 install_packages_from_file()
 
-source(here("GeneralUtils", "load_data.R"))
+source(here("utils", "load_data.R"))
 
 # load in data and preprocess
 data_path <- here("Data")
