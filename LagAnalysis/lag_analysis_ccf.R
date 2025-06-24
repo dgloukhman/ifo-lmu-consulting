@@ -23,179 +23,55 @@ source("utils/load_data.R")
 
 
 # Read Data
-ifo_tbl <- read_ifo_data() %>%
-  preprocess_ifo_data()
+ifo_tsbl <- read_ifo_data() %>%
+  preprocess_ifo_data() %>%
+  as_tsibble(key = industry_code, index = date)
 
-# Create tsibble
-ifo_tsbl <- ifo_tbl %>% as_tsibble(key = industry_code, index = date)
+# --------------------------------------------------------------------
+# Setup 
 
-# Create 1st Diff tsibble
-ifo_tsbl_d1 <- ifo_tsbl %>%
+# Create full tsibble (with 1st Differences)
+ifo_tsbl_full <- ifo_tsbl %>%
   group_by(industry_code) %>%
-  transmute(
-    date = date,
-    across(where(is.numeric) & !any_of(c("date", "level")), ~ difference(.x, lag = 1)),
-    level = level
+  mutate(
+    across(where(is.numeric) & !any_of(c("date", "level")),
+           ~ difference(.x, lag = 1), .names = "{.col}-diff1")
   ) %>%
   ungroup()
 
-# Set Main Index
-main_index <- "C0000000"
+# Pivot Wider
+ifo_tsbl_full_wide <- ifo_tsbl_full %>%
+  select(-level) %>%
+  pivot_wider(
+    names_from = industry_code,
+    values_from = -c(date, industry_code)
+  )
 
 # ====================================================================
-# Setup
-
-# --------------------------------------------------------------------
-# Level 2
-
-# Filter Level 0 and 2 for sector aggregates
-ifo_tsbl_l2 <- ifo_tsbl %>%
-  filter(level %in% c(0, 2)) %>%
-  select(date, industry_code, KLD)
-
-# Transform to wide format
-ifo_tsbl_l2_wide <- ifo_tsbl_l2 %>%
-  pivot_wider(names_from = industry_code, values_from = KLD)
-
-
-# --------------------------------------------------------------------
-# Level 2 - 1st Diff
-
-# Filter Level 0 and 2 for sector aggregates
-ifo_tsbl_d1_l2 <- ifo_tsbl_d1 %>%
-  filter(level %in% c(0, 2)) %>%
-  select(date, industry_code, KLD)
-
-# Transform to wide format
-ifo_tsbl_d1_l2_wide <- ifo_tsbl_d1_l2 %>%
-  pivot_wider(names_from = industry_code, values_from = KLD)
-
-# --------------------------------------------------------------------
-# Level 3
-
-# Filter Level 0 and 2 for sector aggregates
-ifo_tsbl_l3 <- ifo_tsbl %>%
-  filter(level %in% c(0, 3)) %>%
-  select(date, industry_code, KLD)
-
-# Transform to wide format
-ifo_tsbl_l3_wide <- ifo_tsbl_l3 %>%
-  pivot_wider(names_from = industry_code, values_from = KLD)
-
-
-# --------------------------------------------------------------------
-# Level 3 - 1st Diff
-
-# Filter Level 0 and 2 for sector aggregates
-ifo_tsbl_d1_l3 <- ifo_tsbl_d1 %>%
-  filter(level %in% c(0, 3)) %>%
-  select(date, industry_code, KLD)
-
-# Transform to wide format
-ifo_tsbl_d1_l3_wide <- ifo_tsbl_d1_l3 %>%
-  pivot_wider(names_from = industry_code, values_from = KLD)
-
-# ====================================================================
-# Test Stationarity and Cointegration
+# Test Stationarity
 
 source("LagAnalysis/stationarity_cointegration.R")
 
-# --------------------------------------------------------------------
-# Level 2
-
 # Test for unit root: ADF test for all columns (excluding date)
-adf_results_l2 <- as_tibble(ifo_tsbl_l2_wide) %>% run_adf_tests()
+adf_results_full <- ifo_tsbl_full_wide %>% 
+  as_tibble() %>% 
+  run_adf_tests() 
 
-# Test cointegration: Johansen Cointegration Test (VECM) with Main Index
-<<<<<<< HEAD
-cointegration_results_l2 <- as_tibble(ifo_tsbl_l2_wide) %>% 
-=======
-cointegration_results <- as_tibble(ifo_tsbl_l2_wide) %>%
->>>>>>> origin/main
-  run_cointegration_tests(main_index = main_index)
-
-# Merge both tables
-diagnostic_tbl_l2 <- adf_results_l2 %>%
-  inner_join(cointegration_results_l2, by = "industry_code") %>%
+# Postprocessing of adf Results
+adf_results_full <- adf_results_full %>%
+  # Step 1: Rename original industry_code to preserve it
+  rename(ID = industry_code) %>%
+  # Step 2: Separate the original ID into indicator and industry_code
+  separate(ID, into = c("indicator", "industry_code"), sep = "_", remove = FALSE) %>%
+  # Step 3: Split indicator into base + diff components
+  separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
+  # Step 4: Compute difference column and level
   mutate(
-    model_type = case_when(
-      adf_is_stationary ~ "VAR",
-      !adf_is_stationary & coint_cointegrated ~ "VECM",
-      !adf_is_stationary & !coint_cointegrated ~ "DIFF+VAR",
-      TRUE ~ NA_character_
-    )
-  )
-
-
-# --------------------------------------------------------------------
-# Level 2 - 1st Diff
-
-# Test for unit root: ADF test for all columns (excluding date)
-adf_results_d1_l2 <- as_tibble(ifo_tsbl_d1_l2_wide) %>% run_adf_tests()
-
-# Test cointegration: Johansen Cointegration Test (VECM) with Main Index
-<<<<<<< HEAD
-cointegration_results_d1_l2 <- as_tibble(ifo_tsbl_d1_l2_wide) %>% 
-=======
-cointegration_results_d1 <- as_tibble(ifo_tsbl_d1_l2_wide) %>%
->>>>>>> origin/main
-  run_cointegration_tests(main_index = main_index)
-
-# Merge both tables
-diagnostic_tbl_d1_l2 <- adf_results_d1_l2 %>%
-  inner_join(cointegration_results_d1_l2, by = "industry_code") %>%
-  mutate(
-    model_type = case_when(
-      adf_is_stationary ~ "VAR",
-      !adf_is_stationary & coint_cointegrated ~ "VECM",
-      !adf_is_stationary & !coint_cointegrated ~ "DIFF+VAR",
-      TRUE ~ NA_character_
-    )
-  )
-
-# --------------------------------------------------------------------
-# Level 3
-
-# Test for unit root: ADF test for all columns (excluding date)
-adf_results_l3 <- as_tibble(ifo_tsbl_l3_wide) %>% run_adf_tests()
-
-# Test cointegration: Johansen Cointegration Test (VECM) with Main Index
-cointegration_results_l3 <- as_tibble(ifo_tsbl_l3_wide) %>% 
-  run_cointegration_tests(main_index = main_index)
-
-# Merge both tables
-diagnostic_tbl_l3 <- adf_results_l3 %>%
-  inner_join(cointegration_results_l3, by = "industry_code") %>%
-  mutate(
-    model_type = case_when(
-      adf_is_stationary ~ "VAR",
-      !adf_is_stationary & coint_cointegrated ~ "VECM",
-      !adf_is_stationary & !coint_cointegrated ~ "DIFF+VAR",
-      TRUE ~ NA_character_
-    )
-  )
-
-# --------------------------------------------------------------------
-# Level 3 - 1st Diff
-
-# Test for unit root: ADF test for all columns (excluding date)
-adf_results_d1_l3 <- as_tibble(ifo_tsbl_d1_l3_wide) %>% run_adf_tests()
-
-# Test cointegration: Johansen Cointegration Test (VECM) with Main Index
-cointegration_results_d1_l3 <- as_tibble(ifo_tsbl_d1_l3_wide) %>% 
-  run_cointegration_tests(main_index = main_index)
-
-# Merge both tables
-diagnostic_tbl_d1_l3 <- adf_results_d1_l3 %>%
-  inner_join(cointegration_results_d1_l3, by = "industry_code") %>%
-  mutate(
-    model_type = case_when(
-      adf_is_stationary ~ "VAR",
-      !adf_is_stationary & coint_cointegrated ~ "VECM",
-      !adf_is_stationary & !coint_cointegrated ~ "DIFF+VAR",
-      TRUE ~ NA_character_
-    )
-  )
+    difference = if_else(is.na(diff_part), 0L, as.integer(diff_part)),
+    level = sapply(industry_code, get_level)
+  ) %>%
+  # Remove diff_part column (no longer needed)
+  select(-diff_part)
 
 
 # ====================================================================
@@ -204,259 +80,92 @@ diagnostic_tbl_d1_l3 <- adf_results_d1_l3 %>%
 # --------------------------------------------------------------------
 # Setup
 
-# Set target list
-l2_targets <- setdiff(colnames(ifo_tsbl_l2_wide), c("date", main_index))
-l3_targets <- setdiff(colnames(ifo_tsbl_l3_wide), c("date", main_index))
+# Main Index
+main_index = "KLD_C0000000"
 
 # Max lag for tests
-max_lag <- 12
+max_lag <- 6
 
-# Function to compute full lag correlation for one sector
-get_ccf_full <- function(tsbl, main_index, target_code) {
-  x <- tsbl[[target_code]]
-  y <- tsbl[[main_index]]
-
-  # Remove NAs
-  non_na_idx <- complete.cases(x, y)
-  x <- x[non_na_idx]
-  y <- y[non_na_idx]
-
-  # Compute CCF
-  ccf_obj <- ccf(x, y, lag.max = max_lag, plot = FALSE)
-
-  tibble(
-    lag = ccf_obj$lag,
-    correlation = ccf_obj$acf,
-    industry_code = target_code
-  )
-}
-
+# Set target list
+stationary_targets <- adf_results_full %>%
+  filter(adf_is_stationary) %>%                   # Step 1: keep only stationary
+  group_by(indicator, industry_code) %>%          # Step 2: group per series
+  slice_min(difference, with_ties = FALSE) %>%    # Step 3: pick least-differenced
+  ungroup() %>%
+  pull(ID) %>%
+  setdiff(main_index)                             # Step 4: exclude main index
 
 # --------------------------------------------------------------------
-# Level 2
+# Compute correlation
+source("LagAnalysis/ccf_function.R")
 
 # Build full tibble
 ccf_full_tbl <- map_dfr(
-  l2_targets,
+  stationary_targets,
   ~ get_ccf_full(
-    tsbl = ifo_tsbl_l2_wide,
+    tsbl = ifo_tsbl_full_wide,
     main_index = main_index,
-    target_code = .x
-  )
-)
+    target_code = .x,
+    max_lag = max_lag
+  )) %>%
+  rename(ID = industry_code)
 
-# Extract peak lead/lag per Industry
-ccf_peak_tbl <- ccf_full_tbl %>%
-  group_by(industry_code) %>%
-  slice_max(order_by = abs(correlation), n = 1, with_ties = FALSE) %>%
-  ungroup() %>%
-  rename(peak_lag = lag, peak_corr = correlation)
-
-## Visualization
-
-# Sort full ccf tbl
-ccf_full_sorted <- ccf_full_tbl %>%
-  left_join(ccf_peak_tbl, by = "industry_code") %>%
-  arrange(peak_lag, industry_code) %>%
-  mutate(industry_code = factor(industry_code, levels = unique(industry_code)))
-
-# Create markers for heatmap
-ccf_peak_markers <- ccf_peak_tbl %>%
+# Postprocessing of ccf Results
+ccf_full_tbl <- ccf_full_tbl %>%
+  # Step 2: Separate the original ID into indicator and industry_code
+  separate(ID, into = c("indicator", "industry_code"), sep = "_", remove = FALSE) %>%
+  # Step 3: Split indicator into base + diff components
+  separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
+  # Step 4: Compute difference column and level
   mutate(
-    industry_code = factor(
-      industry_code,
-      levels = levels(ccf_full_sorted$industry_code)
-    )
-  )
-
-# Plot heatmap
-ggplot(ccf_full_sorted, aes(x = industry_code, y = lag, fill = correlation)) +
-<<<<<<< HEAD
-  geom_tile() +  # Base heatmap
-  geom_tile(data = ccf_peak_markers, aes(x = industry_code, y = peak_lag),
-            color = "yellow", fill = NA, linewidth = 0.8, width = 0.95, height = 0.95, inherit.aes = FALSE) +
-  scale_fill_gradient2(low = "red", high = "darkgreen", mid = "white", midpoint = 0,
-                       name = "Correlation") +
-=======
-  geom_tile() + # Base heatmap
-  geom_tile(
-    data = ccf_peak_markers,
-    aes(x = industry_code, y = peak_lag),
-    color = "yellow",
-    fill = NA,
-    linewidth = 0.8,
-    width = 0.95,
-    height = 0.95,
-    inherit.aes = FALSE
-  ) +
-  scale_fill_gradient2(
-    low = "blue",
-    high = "red",
-    mid = "white",
-    midpoint = 0,
-    name = "Correlation"
-  ) +
->>>>>>> origin/main
-  theme_minimal() +
-  labs(
-    title = "CCF Heatmap: Highlighted Peak Correlations",
-    x = "Industry Code (sorted by peak lag)",
-    y = "Lag (months)"
-  ) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
-
-
-# --------------------------------------------------------------------
-# Level 2 - 1st Diff
-
-# Build full tibble
-ccf_full_tbl <- map_dfr(
-  l2_targets,
-  ~ get_ccf_full(
-    tsbl = ifo_tsbl_d1_l2_wide,
-    main_index = main_index,
-    target_code = .x
-  )
-)
+    difference = if_else(is.na(diff_part), 0L, as.integer(diff_part)),
+    level = sapply(industry_code, get_level)
+  ) %>%
+  # Remove diff_part column (no longer needed)
+  select(-diff_part)
 
 # Extract peak lead/lag per Industry
-ccf_peak_tbl <- ccf_full_tbl %>%
-  group_by(industry_code) %>%
+ccf_full_peak_tbl <- ccf_full_tbl %>%
+  group_by(ID) %>%
   slice_max(order_by = abs(correlation), n = 1, with_ties = FALSE) %>%
   ungroup() %>%
   rename(peak_lag = lag, peak_corr = correlation)
 
-## Visualization
 
-# Sort full ccf tbl
-ccf_full_sorted <- ccf_full_tbl %>%
-  left_join(ccf_peak_tbl, by = "industry_code") %>%
-  arrange(peak_lag, industry_code) %>%
-  mutate(industry_code = factor(industry_code, levels = unique(industry_code)))
-
-# Create markers for heatmap
-ccf_peak_markers <- ccf_peak_tbl %>%
-  mutate(
-    industry_code = factor(
-      industry_code,
-      levels = levels(ccf_full_sorted$industry_code)
-    )
-  )
-
-# Plot heatmap
-ggplot(ccf_full_sorted, aes(x = industry_code, y = lag, fill = correlation)) +
-<<<<<<< HEAD
-  geom_tile() +  # Base heatmap
-  geom_tile(data = ccf_peak_markers, aes(x = industry_code, y = peak_lag),
-            color = "yellow", fill = NA, linewidth = 0.8, width = 0.95, height = 0.95, inherit.aes = FALSE) +
-  scale_fill_gradient2(low = "red", high = "darkgreen", mid = "white", midpoint = 0,
-                       name = "Correlation") +
-=======
-  geom_tile() + # Base heatmap
-  geom_tile(
-    data = ccf_peak_markers,
-    aes(x = industry_code, y = peak_lag),
-    color = "yellow",
-    fill = NA,
-    linewidth = 0.8,
-    width = 0.95,
-    height = 0.95,
-    inherit.aes = FALSE
-  ) +
-  scale_fill_gradient2(
-    low = "blue",
-    high = "red",
-    mid = "white",
-    midpoint = 0,
-    name = "Correlation"
-  ) +
->>>>>>> origin/main
-  theme_minimal() +
-  labs(
-    title = "CCF Heatmap: Highlighted Peak Correlations",
-    x = "Industry Code (sorted by peak lag)",
-    y = "Lag (months)"
-  ) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+# ====================================================================
+# Visualization
 
 # --------------------------------------------------------------------
-# Level 3
+# Full Heatmap (L2-3)
 
-# Build full tibble
-ccf_full_tbl <- map_dfr(
-  l3_targets,
-  ~get_ccf_full(tsbl = ifo_tsbl_l3_wide, main_index = main_index, target_code = .x)
-)
+# Filter ccf Results
+heatmap_data <- ccf_full_tbl %>%
+  filter(level %in% c(2, 3)) %>%
+  group_by(lag, indicator) %>%
+  summarise(mean_corr = mean(correlation, na.rm = TRUE), .groups = "drop")
 
-# Extract peak lead/lag per Industry
-ccf_peak_tbl <- ccf_full_tbl %>%
-  group_by(industry_code) %>%
-  slice_max(order_by = abs(correlation), n = 1, with_ties = FALSE) %>%
-  ungroup() %>%
-  rename(peak_lag = lag, peak_corr = correlation)
-
-## Visualization
-
-# Sort full ccf tbl
-ccf_full_sorted <- ccf_full_tbl %>%
-  left_join(ccf_peak_tbl, by = "industry_code") %>%
-  arrange(peak_lag, industry_code) %>%
-  mutate(industry_code = factor(industry_code, levels = unique(industry_code)))
-
-# Create markers for heatmap
-ccf_peak_markers <- ccf_peak_tbl %>%
-  mutate(industry_code = factor(industry_code, levels = levels(ccf_full_sorted$industry_code)))
-
-# Plot heatmap
-ggplot(ccf_full_sorted, aes(x = industry_code, y = lag, fill = correlation)) +
-  geom_tile() +  # Base heatmap
-  geom_tile(data = ccf_peak_markers, aes(x = industry_code, y = peak_lag),
-            color = "yellow", fill = NA, linewidth = 0.8, width = 0.95, height = 0.95, inherit.aes = FALSE) +
-  scale_fill_gradient2(low = "red", high = "darkgreen", mid = "white", midpoint = 0,
-                       name = "Correlation") +
+# Plot ccf Results
+ggplot(heatmap_data, aes(x = lag, y = indicator, fill = mean_corr)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
   theme_minimal() +
-  labs(title = "CCF Heatmap: Highlighted Peak Correlations",
-       x = "Industry Code (sorted by peak lag)", y = "Lag (months)") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+  labs(title = "Average Cross-Correlation per Lag and Indicator",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
 
 
-# --------------------------------------------------------------------
-# Level 3 - 1st Diff
+# Filter ccf Peak Results
+peak_heatmap_data <- ccf_full_peak_tbl %>%
+  filter(level %in% c(2, 3)) %>%
+  count(peak_lag, indicator, name = "peak_count")
 
-# Build full tibble
-ccf_full_tbl <- map_dfr(
-  l3_targets,
-  ~get_ccf_full(tsbl = ifo_tsbl_d1_l3_wide, main_index = main_index, target_code = .x)
-)
-
-# Extract peak lead/lag per Industry
-ccf_peak_tbl <- ccf_full_tbl %>%
-  group_by(industry_code) %>%
-  slice_max(order_by = abs(correlation), n = 1, with_ties = FALSE) %>%
-  ungroup() %>%
-  rename(peak_lag = lag, peak_corr = correlation)
-
-## Visualization
-
-# Sort full ccf tbl
-ccf_full_sorted <- ccf_full_tbl %>%
-  left_join(ccf_peak_tbl, by = "industry_code") %>%
-  arrange(peak_lag, industry_code) %>%
-  mutate(industry_code = factor(industry_code, levels = unique(industry_code)))
-
-# Create markers for heatmap
-ccf_peak_markers <- ccf_peak_tbl %>%
-  mutate(industry_code = factor(industry_code, levels = levels(ccf_full_sorted$industry_code)))
-
-# Plot heatmap
-ggplot(ccf_full_sorted, aes(x = industry_code, y = lag, fill = correlation)) +
-  geom_tile() +  # Base heatmap
-  geom_tile(data = ccf_peak_markers, aes(x = industry_code, y = peak_lag),
-            color = "yellow", fill = NA, linewidth = 0.8, width = 0.95, height = 0.95, inherit.aes = FALSE) +
-  scale_fill_gradient2(low = "red", high = "darkgreen", mid = "white", midpoint = 0,
-                       name = "Correlation") +
+# Plot ccf Peak Results
+ggplot(peak_heatmap_data, aes(x = peak_lag, y = indicator, fill = peak_count)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "darkblue") +
   theme_minimal() +
-  labs(title = "CCF Heatmap: Highlighted Peak Correlations",
-       x = "Industry Code (sorted by peak lag)", y = "Lag (months)") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
-
+  labs(title = "Peak Lead/Lag Count per Indicator",
+       x = "Peak Lag",
+       y = "Indicator",
+       fill = "Count")
