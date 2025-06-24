@@ -84,11 +84,8 @@ adf_results_full <- adf_results_full %>%
 main_index = "KLD_C0000000"
 
 # Max lag for tests
-<<<<<<< HEAD
-max_lag <- 6
-=======
 max_lag <- 12
->>>>>>> bd86d72 (Implemented full ccf analysis and code cleanup)
+
 
 # Set target list
 stationary_targets <- adf_results_full %>%
@@ -148,11 +145,6 @@ heatmap_data <- ccf_full_tbl %>%
   group_by(lag, indicator) %>%
   summarise(mean_corr = mean(correlation, na.rm = TRUE), .groups = "drop")
 
-<<<<<<< HEAD
-# Plot ccf Results
-ggplot(heatmap_data, aes(x = lag, y = indicator, fill = mean_corr)) +
-  geom_tile() +
-=======
 # Identify max correlation per indicator
 highlight_points <- heatmap_data %>%
   group_by(indicator) %>%
@@ -164,7 +156,6 @@ ggplot(heatmap_data, aes(x = lag, y = indicator, fill = mean_corr)) +
   geom_tile() +
   geom_tile(data = highlight_points,
             color = "yellow", size = 1.2, fill = NA) +
->>>>>>> bd86d72 (Implemented full ccf analysis and code cleanup)
   scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
   theme_minimal() +
   labs(title = "Average Cross-Correlation per Lag and Indicator",
@@ -172,19 +163,12 @@ ggplot(heatmap_data, aes(x = lag, y = indicator, fill = mean_corr)) +
        y = "Indicator",
        fill = "Mean Corr")
 
+
 # Filter ccf Peak Results
 peak_heatmap_data <- ccf_full_peak_tbl %>%
   filter(level %in% c(2, 3)) %>%
   count(peak_lag, indicator, name = "peak_count")
 
-<<<<<<< HEAD
-# Filter ccf Peak Results
-peak_heatmap_data <- ccf_full_peak_tbl %>%
-  filter(level %in% c(2, 3)) %>%
-  count(peak_lag, indicator, name = "peak_count")
-
-=======
->>>>>>> bd86d72 (Implemented full ccf analysis and code cleanup)
 # Plot ccf Peak Results
 ggplot(peak_heatmap_data, aes(x = peak_lag, y = indicator, fill = peak_count)) +
   geom_tile() +
