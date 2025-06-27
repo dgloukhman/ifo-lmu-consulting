@@ -8,3 +8,4 @@ fabletools
 fable
 feasts
 lmtest
+slider
