@@ -9,6 +9,7 @@
 library(tidyverse)   # For tibble, select, map_dfr, mutate, etc.
 library(tseries)     # For adf.test()
 library(urca)        # For ca.jo() Johansen cointegration test
+library(slider)      # For rolling window functionality
 
 # --------------------------------------------------------------------
 # Function: run_adf_tests
@@ -16,7 +17,7 @@ library(urca)        # For ca.jo() Johansen cointegration test
 # Arguments:
 #   - data_tbl: A wide-format tibble/data.frame with a 'date' column
 #               and multiple time series columns
-#   - significance_level: threshold for determining stationarity (default = 0.05)
+#   - significance_level: Threshold for determining stationarity (default = 0.05)
 # Returns:
 #   - A tibble with columns:
 #       industry_code        (name of the time series column)
@@ -45,6 +46,42 @@ run_adf_tests <- function(data_tbl, significance_level = 0.05) {
 }
 
 # --------------------------------------------------------------------
+# Function: run_rolling_adf
+# Purpose: Apply the ADF test over rolling windows of fixed length
+# Arguments:
+#   - data_tsbl: A wide-format tsibble or tibble with a 'date' column
+#   - window_size: Number of observations per rolling window (default = 24)
+#   - step: Number of observations to move forward per iteration (default = 1)
+#   - significance_level: Threshold for determining stationarity (default = 0.05)
+# Returns:
+#   - A tibble with one row per industry and per window,
+#     including:
+#       industry_code        (name of the time series column)
+#       adf_statistic        (ADF test statistic)
+#       adf_p_value          (p-value of the ADF test)
+#       adf_is_stationary    (TRUE if p < significance_level)
+#       date_window_end      (last date in the current rolling window)
+# Notes:
+#   - Only complete windows are used (controlled by .complete = TRUE)
+#   - Results are aligned to the right edge of the window
+# --------------------------------------------------------------------
+run_rolling_adf <- function(data_tsbl, window_size = 24, step = 1, significance_level = 0.05) {
+  # Ensure data is sorted by date
+  data_tsbl <- data_tsbl %>% arrange(date)
+  
+  # Apply rolling window ADF tests aligned by date
+  slide_index_dfr(
+    .x = data_tsbl,
+    .i = data_tsbl$date,
+    .f = ~ run_adf_tests(.x, significance_level),
+    .before = window_size - 1,
+    .complete = TRUE,
+    .every = step,
+    .names_to = "date_window_end"  # adds a column for window end date
+  )
+}
+
+# --------------------------------------------------------------------
 # Function: run_cointegration_tests
 # Purpose: Perform Johansen cointegration test for each sector vs main index
 # Arguments:
@@ -54,9 +91,12 @@ run_adf_tests <- function(data_tbl, significance_level = 0.05) {
 # Returns:
 #   - A tibble with columns:
 #       industry_code         (name of the sector index column)
-#       coint_statistic       (Johansen test statistic)
-#       coint_critical_value  (5% critical value)
+#       coint_statistic       (Johansen test statistic for r = 0)
+#       coint_critical_value  (5% critical value for the test)
 #       coint_cointegrated    (TRUE if test_stat > critical value)
+# Notes:
+#   - The test is performed for each sector index relative to the main index
+#   - Constant deterministic trend ("const") is included in the test specification
 # --------------------------------------------------------------------
 run_cointegration_tests <- function(data_tbl, main_index, lag = 2) {
   other_codes <- setdiff(names(data_tbl), c("date", main_index))  # exclude main and date
