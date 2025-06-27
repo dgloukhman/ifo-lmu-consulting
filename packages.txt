@@ -9,3 +9,5 @@ fable
 feasts
 lmtest
 slider
+tseries
+urca
