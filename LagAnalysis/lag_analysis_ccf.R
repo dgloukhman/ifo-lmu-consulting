@@ -52,6 +52,9 @@ ifo_tsbl_full_wide <- ifo_tsbl_full %>%
 
 source("LagAnalysis/stationarity_cointegration.R")
 
+# --------------------------------------------------------------------
+# Full Stationarity Test
+
 # Test for unit root: ADF test for all columns (excluding date)
 adf_results_full <- ifo_tsbl_full_wide %>% 
   as_tibble() %>% 
@@ -72,6 +75,17 @@ adf_results_full <- adf_results_full %>%
   ) %>%
   # Remove diff_part column (no longer needed)
   select(-diff_part)
+
+# --------------------------------------------------------------------
+# Rolling Window Stationarity Test
+
+# Test for unit root: rolling ADF test for all columns (excluding date)
+adf_results_roll <- ifo_tsbl_full_wide %>% 
+  as_tibble() %>% 
+  run_rolling_adf(
+    window_size = 12,
+    step = 1
+  ) 
 
 
 # ====================================================================
