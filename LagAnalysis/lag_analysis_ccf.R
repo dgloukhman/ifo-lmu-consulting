@@ -43,6 +43,7 @@ ifo_tsbl_full <- ifo_tsbl %>%
 ifo_tsbl_full_wide <- ifo_tsbl_full %>%
   select(-level) %>%
   pivot_wider(
+    id_cols = date,
     names_from = industry_code,
     values_from = -c(date, industry_code)
   )
@@ -83,9 +84,25 @@ adf_results_full <- adf_results_full %>%
 adf_results_roll <- ifo_tsbl_full_wide %>% 
   as_tibble() %>% 
   run_rolling_adf(
-    window_size = 12,
+    window_size = 24, # Window Size in Months
     step = 1
   ) 
+
+# Postprocessing of adf Results
+adf_results_roll <- adf_results_roll %>%
+  # Step 1: Rename original industry_code to preserve it
+  rename(ID = industry_code) %>%
+  # Step 2: Separate the original ID into indicator and industry_code
+  separate(ID, into = c("indicator", "industry_code"), sep = "_", remove = FALSE) %>%
+  # Step 3: Split indicator into base + diff components
+  separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
+  # Step 4: Compute difference column and level
+  mutate(
+    difference = if_else(is.na(diff_part), 0L, as.integer(diff_part)),
+    level = sapply(industry_code, get_level)
+  ) %>%
+  # Remove diff_part column (no longer needed)
+  select(-diff_part)
 
 
 # ====================================================================

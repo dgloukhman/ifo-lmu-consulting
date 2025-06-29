@@ -10,6 +10,7 @@ library(tidyverse)   # For tibble, select, map_dfr, mutate, etc.
 library(tseries)     # For adf.test()
 library(urca)        # For ca.jo() Johansen cointegration test
 library(slider)      # For rolling window functionality
+library(lubridate)   # For sliding over months intead of days
 
 # --------------------------------------------------------------------
 # Function: run_adf_tests
@@ -24,25 +25,38 @@ library(slider)      # For rolling window functionality
 #       adf_statistic        (ADF test statistic)
 #       adf_p_value          (p-value of the ADF test)
 #       adf_is_stationary    (TRUE if p < significance_level)
+# Notes:
+#   - If the ADF test fails (e.g., due to short or constant input),
+#     NA values are returned and an informative message is printed.
 # --------------------------------------------------------------------
 run_adf_tests <- function(data_tbl, significance_level = 0.05) {
   data_tbl %>%
-    select(-date) %>%
-    purrr::map_dfr(~{
-      ts_clean <- .x[complete.cases(.x)]  # remove NA values
-      result <- tryCatch({
-        # Perform ADF test and suppress common warning about small p-values
+    as_tibble() %>%
+    select(-date) %>%  # Remove 'date' column to isolate only time series
+    purrr::imap_dfr(~{
+      ts_clean <- .x[complete.cases(.x)]  # Drop any NA values in the series
+      
+      tryCatch({
+        # Run ADF test with warnings suppressed (e.g., for p-value near 0)
         test <- suppressWarnings(tseries::adf.test(ts_clean))
+        # Return test results as tibble
         tibble(
-          adf_statistic = test$statistic,
-          adf_p_value = test$p.value,
-          adf_is_stationary = test$p.value < significance_level
+          industry_code = .y,                              # Column name (e.g., sector ID)
+          adf_statistic = test$statistic,                  # Test statistic
+          adf_p_value = test$p.value,                      # p-value
+          adf_is_stationary = test$p.value < significance_level  # Logical result
         )
       }, error = function(e) {
-        # Handle errors (e.g., not enough data)
-        tibble(adf_statistic = NA_real_, adf_p_value = NA_real_, adf_is_stationary = NA)
+        # If the test fails (e.g., due to constant input or too few points), return NAs
+        message(sprintf("ADF error in series '%s': %s", .y, e$message))
+        tibble(
+          industry_code = .y,
+          adf_statistic = NA_real_,
+          adf_p_value = NA_real_,
+          adf_is_stationary = NA
+        )
       })
-    }, .id = "industry_code")  # use column names as IDs
+    })
 }
 
 # --------------------------------------------------------------------
@@ -63,21 +77,24 @@ run_adf_tests <- function(data_tbl, significance_level = 0.05) {
 #       date_window_end      (last date in the current rolling window)
 # Notes:
 #   - Only complete windows are used (controlled by .complete = TRUE)
-#   - Results are aligned to the right edge of the window
+#   - Results are aligned to the right edge of the window (i.e., date_window_end)
 # --------------------------------------------------------------------
 run_rolling_adf <- function(data_tsbl, window_size = 24, step = 1, significance_level = 0.05) {
-  # Ensure data is sorted by date
+  # Ensure data is ordered by date to ensure correct rolling behavior
   data_tsbl <- data_tsbl %>% arrange(date)
   
-  # Apply rolling window ADF tests aligned by date
+  # Apply sliding window ADF tests using slider::slide_index_dfr
   slide_index_dfr(
-    .x = data_tsbl,
-    .i = data_tsbl$date,
-    .f = ~ run_adf_tests(.x, significance_level),
-    .before = window_size - 1,
-    .complete = TRUE,
-    .every = step,
-    .names_to = "date_window_end"  # adds a column for window end date
+    .x = data_tsbl,              # The data
+    .i = data_tsbl$date,         # The index column (rolling is done by date)
+    .f = ~{
+      # Apply ADF tests within each rolling window, return results + window end date
+      run_adf_tests(.x, significance_level) %>%
+        mutate(date_window_end = max(.x$date))
+    },
+    .before = months(window_size - 1),   # Look-back size (window length)
+    .complete = TRUE,            # Drop incomplete windows (e.g., at the beginning)
+    .every = step                # Step size for sliding window
   )
 }
 

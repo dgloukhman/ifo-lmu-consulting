@@ -33,12 +33,9 @@ library(slider)      # For rolling window functionality
 #   - The output is suitable for lead-lag visualizations and dynamic analyses.
 # --------------------------------------------------------------------
 get_ccf_full <- function(tsbl, main_index, target_code, max_lag = 12) {
-  # Convert to Tibble
-  tbl <- as_tibble(tsbl) 
-  
   # Extract time series for main index and target industry
-  x <- tbl[[target_code]]
-  y <- tbl[[main_index]]
+  x <- tsbl[[target_code]]
+  y <- tsbl[[main_index]]
   
   # Remove any rows with missing values in either series
   non_na_idx <- complete.cases(x, y)
@@ -75,8 +72,7 @@ get_ccf_full <- function(tsbl, main_index, target_code, max_lag = 12) {
 # --------------------------------------------------------------------
 run_rolling_ccf <- function(tsbl, main_index, target_code,
                             window_size = 24, step = 1, max_lag = 12) {
-  tbl <- as_tibble(tsbl)
-  tbl <- tbl %>% arrange(date)
+  tsbl <- tsbl %>% arrange(date)
   
   slider::slide_index_dfr(
     .x = tbl,
@@ -85,7 +81,7 @@ run_rolling_ccf <- function(tsbl, main_index, target_code,
       ccf_tbl <- get_ccf_full(.x, main_index, target_code, max_lag)
       ccf_tbl %>% mutate(date_window_end = max(.x$date))
     },
-    .before = window_size - 1,
+    .before = months(window_size - 1),
     .complete = TRUE,
     .every = step
   )
