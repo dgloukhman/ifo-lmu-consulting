@@ -19,6 +19,11 @@ library("furrr")
 library("future")
 
 # --------------------------------------------------------------------
+# Enable parallel processing
+
+plan(multisession)  # Or use multisession, cluster, etc.
+
+# --------------------------------------------------------------------
 # Data Preparation
 
 source("utils/load_data.R")
@@ -71,7 +76,6 @@ source("LagAnalysis/stationarity_cointegration.R")
 
 # --------------------------------------------------------------------
 # Rolling Window Stationarity Test
-plan(multisession)  # Or use multisession, cluster, etc.
 
 # Test for unit root: rolling ADF test for all columns (excluding date)
 adf_results_roll <- ifo_tsbl_roll %>%
@@ -132,8 +136,6 @@ stationary_targets_roll <- adf_results_roll %>%
 # --------------------------------------------------------------------
 # Compute Rolling CCF
 source("LagAnalysis/ccf_function.R")
-
-plan(multisession)  # # Or use multisession, cluster, etc.
 
 # Compute rolling ccf tibble
 ccf_results_roll <- ifo_tsbl_roll %>%
