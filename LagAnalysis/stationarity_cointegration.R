@@ -32,7 +32,7 @@ library(lubridate)   # For sliding over months intead of days
 run_adf_tests <- function(data_tbl, significance_level = 0.05) {
   data_tbl %>%
     as_tibble() %>%
-    select(-date) %>%  # Remove 'date' column to isolate only time series
+    select(where(is.numeric)) %>%  # Remove 'date' column etc., keep only numeric
     purrr::imap_dfr(~{
       ts_clean <- .x[complete.cases(.x)]  # Drop any NA values in the series
       
@@ -41,9 +41,9 @@ run_adf_tests <- function(data_tbl, significance_level = 0.05) {
         test <- suppressWarnings(tseries::adf.test(ts_clean))
         # Return test results as tibble
         tibble(
-          industry_code = .y,                              # Column name (e.g., sector ID)
-          adf_statistic = test$statistic,                  # Test statistic
-          adf_p_value = test$p.value,                      # p-value
+          industry_code = .y,                   # Column name (e.g., sector ID)
+          adf_statistic = test$statistic,       # Test statistic
+          adf_p_value = test$p.value,           # p-value
           adf_is_stationary = test$p.value < significance_level  # Logical result
         )
       }, error = function(e) {

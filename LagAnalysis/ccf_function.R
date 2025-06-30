@@ -71,15 +71,28 @@ get_ccf_full <- function(tsbl, main_index, target_code, max_lag = 12) {
 #       industry_code      (the target_code repeated)
 # --------------------------------------------------------------------
 run_rolling_ccf <- function(tsbl, main_index, target_code,
-                            window_size = 24, step = 1, max_lag = 12) {
+                            window_size = 24, step = 1, max_lag = 12,
+                            target_IDs) {
+  
   tsbl <- tsbl %>% arrange(date)
   
   slider::slide_index_dfr(
-    .x = tbl,
-    .i = tbl$date,
+    .x = tsbl,
+    .i = tsbl$date,
     .f = ~{
-      ccf_tbl <- get_ccf_full(.x, main_index, target_code, max_lag)
-      ccf_tbl %>% mutate(date_window_end = max(.x$date))
+      # Get the window's end date
+      end_date <- max(.x$date)
+      
+      # Build the current window's target ID (same logic as in your stationary_targets_roll)
+      current_ID <- str_c(target_code, end_date, sep = "_")
+      
+      # Only compute if it's in the target list
+      if (current_ID %in% target_IDs) {
+        ccf_tbl <- get_ccf_full(.x, main_index, target_code, max_lag)
+        ccf_tbl %>% mutate(date_window_end = end_date)
+      } else {
+        tibble()  # return empty tibble if not in target
+      }
     },
     .before = months(window_size - 1),
     .complete = TRUE,

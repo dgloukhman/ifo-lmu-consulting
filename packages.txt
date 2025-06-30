@@ -11,3 +11,4 @@ lmtest
 slider
 tseries
 urca
+furrr
