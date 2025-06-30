@@ -12,3 +12,4 @@ slider
 tseries
 urca
 furrr
+future

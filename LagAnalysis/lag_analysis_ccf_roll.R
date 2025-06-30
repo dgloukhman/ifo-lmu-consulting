@@ -16,6 +16,7 @@ library("tseries")
 library("ggplot2")
 library("feasts")
 library("furrr")
+library("future")
 
 # --------------------------------------------------------------------
 # Data Preparation
