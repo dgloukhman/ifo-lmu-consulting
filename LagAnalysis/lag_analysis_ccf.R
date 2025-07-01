@@ -143,18 +143,19 @@ stationary_targets <- adf_results_full %>%
   setdiff(main_index)                             
 
 # Build full tibble
-ccf_full_tbl <- map_dfr(
+ccf_results_full <- map_dfr(
   stationary_targets,
   ~ get_ccf_full(
     tsbl = ifo_tsbl_full_wide,
     main_index = main_index,
     target_code = .x,
     max_lag = max_lag
-  )) %>%
-  rename(ID = industry_code)
+  ))
 
 # Postprocessing of ccf Results
-ccf_full_tbl <- ccf_full_tbl %>%
+ccf_results_full <- ccf_results_full %>%
+  # Step 1: Rename Industry Code Field
+  rename(ID = industry_code) %>% 
   # Step 2: Separate the original ID into indicator and industry_code
   separate(ID, into = c("indicator", "industry_code"), sep = "_", remove = FALSE) %>%
   # Step 3: Split indicator into base + diff components
@@ -168,7 +169,7 @@ ccf_full_tbl <- ccf_full_tbl %>%
   select(-diff_part)
 
 # Extract peak lead/lag per Industry
-ccf_full_peak_tbl <- ccf_full_tbl %>%
+ccf_results_full_peak <- ccf_results_full %>%
   group_by(ID) %>%
   slice_max(order_by = abs(correlation), n = 1, with_ties = FALSE) %>%
   ungroup() %>%
@@ -214,7 +215,7 @@ ccf_full_peak_tbl <- ccf_full_tbl %>%
 # Full Heatmap (L2-3)
 
 # Filter ccf Results
-heatmap_data <- ccf_full_tbl %>%
+heatmap_data <- ccf_results_full %>%
   filter(level %in% c(2, 3)) %>%
   group_by(lag, indicator) %>%
   summarise(mean_corr = mean(correlation, na.rm = TRUE), .groups = "drop")
@@ -239,7 +240,7 @@ ggplot(heatmap_data, aes(x = lag, y = indicator, fill = mean_corr)) +
 
 
 # Filter ccf Peak Results
-peak_heatmap_data <- ccf_full_peak_tbl %>%
+peak_heatmap_data <- ccf_results_full_peak %>%
   filter(level %in% c(2, 3)) %>%
   count(peak_lag, indicator, name = "peak_count")
 

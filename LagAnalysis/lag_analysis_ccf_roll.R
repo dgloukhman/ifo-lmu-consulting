@@ -46,11 +46,11 @@ ifo_tsbl_full <- ifo_tsbl %>%
   ) %>%
   ungroup()
 
-# --------------------------------------------------------------------
-# Filter option for performance
-ifo_tsbl_full <- ifo_tsbl_full %>%
-  filter(level %in% c(0,2))
-# --------------------------------------------------------------------
+# # --------------------------------------------------------------------
+# # Filter option for performance
+# ifo_tsbl_full <- ifo_tsbl_full %>%
+#   filter(level %in% c(0,2))
+# # --------------------------------------------------------------------
 
 # Pivot Wider
 ifo_tsbl_full_wide <- ifo_tsbl_full %>%
@@ -107,6 +107,8 @@ adf_results_roll <- adf_results_roll %>%
   # Add the date_window_end to ID (enforces unique ID)
   mutate(ID = str_c(ID, date_window_end, sep = "_"))
 
+# Save Output as temp data file
+write_csv(adf_results_roll, "LagAnalysis/temp_data/adf_results_roll.csv")
 
 # ====================================================================
 # Cross-Correlation Analysis
@@ -138,7 +140,7 @@ stationary_targets_roll <- adf_results_roll %>%
 source("LagAnalysis/ccf_function.R")
 
 # Compute rolling ccf tibble
-ccf_results_roll <- ifo_tsbl_roll %>%
+ccf_tbl_roll <- ifo_tsbl_roll %>%
   as_tibble() %>%
   group_by(window_id) %>%
   group_split() %>%
@@ -168,7 +170,27 @@ ccf_results_roll <- ifo_tsbl_roll %>%
     })
   })
 
+# Postprocessing of ccf Results
+ccf_tbl_roll <- ccf_tbl_roll %>%
+  # Step 1: Rename Industry Code Field
+  rename(ID = industry_code) %>% 
+  # Step 2: Separate the original ID into indicator and industry_code
+  separate(ID, into = c("indicator", "industry_code"), sep = "_", remove = FALSE) %>%
+  # Step 3: Split indicator into base + diff components
+  separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
+  # Step 4: Compute difference column and level
+  mutate(
+    difference = if_else(is.na(diff_part), 0L, as.integer(diff_part)),
+    level = sapply(industry_code, get_level)
+  ) %>%
+  # Remove diff_part column (no longer needed)
+  select(-diff_part)
 
-# ====================================================================
+# Save Output as temp data file
+write_csv(ccf_results_roll, "LagAnalysis/temp_data/ccf_results_roll.csv")
+
+
+
+ # ====================================================================
 # Visualization
 

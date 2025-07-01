@@ -47,8 +47,8 @@ get_ccf_full <- function(tsbl, main_index, target_code, max_lag = 12) {
   
   # Format output as tidy tibble
   tibble(
-    lag = ccf_obj$lag,
-    correlation = ccf_obj$acf,
+    lag = as.numeric(ccf_obj$lag),
+    correlation = as.numeric(ccf_obj$acf),
     industry_code = target_code
   )
 }
