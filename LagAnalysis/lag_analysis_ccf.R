@@ -2,9 +2,14 @@
 # General
 
 # --------------------------------------------------------------------
+# Source Utility Function
+source("utils/setup_packages.R")
+source("utils/load_data.R")
+source("LagAnalysis/lag_utils.R")
+
+# --------------------------------------------------------------------
 # Installs necessary packages
 
-source("utils/setup_packages.R")
 install_packages_from_file()
 
 # --------------------------------------------------------------------
@@ -14,13 +19,10 @@ library("tidyverse")
 library("tsibble")
 library("tseries")
 library("ggplot2")
-library("feasts")
+
 
 # --------------------------------------------------------------------
 # Data Preparation
-
-source("utils/load_data.R")
-
 
 # Read Data
 ifo_tsbl <- read_ifo_data() %>%
@@ -39,11 +41,11 @@ ifo_tsbl_full <- ifo_tsbl %>%
   ) %>%
   ungroup()
 
-# --------------------------------------------------------------------
-# Filter option for performance
-ifo_tsbl_full <- ifo_tsbl_full %>%
-  filter(level %in% c(0,2))
-# --------------------------------------------------------------------
+# # --------------------------------------------------------------------
+# # Filter option for performance
+# ifo_tsbl_full <- ifo_tsbl_full %>%
+#   filter(level %in% c(0,2))
+# # --------------------------------------------------------------------
 
 # Pivot Wider
 ifo_tsbl_full_wide <- ifo_tsbl_full %>%
@@ -69,19 +71,7 @@ adf_results_full <- ifo_tsbl_full_wide %>%
 
 # Postprocessing of adf Results
 adf_results_full <- adf_results_full %>%
-  # Step 1: Rename original industry_code to preserve it
-  rename(ID = industry_code) %>%
-  # Step 2: Separate the original ID into indicator and industry_code
-  separate(ID, into = c("indicator", "industry_code"), sep = "_", remove = FALSE) %>%
-  # Step 3: Split indicator into base + diff components
-  separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
-  # Step 4: Compute difference column and level
-  mutate(
-    difference = if_else(is.na(diff_part), 0L, as.integer(diff_part)),
-    level = sapply(industry_code, get_level)
-  ) %>%
-  # Remove diff_part column (no longer needed)
-  select(-diff_part)
+  adf_postprocess()
 
 # --------------------------------------------------------------------
 # # Rolling Window Stationarity Test
@@ -154,19 +144,7 @@ ccf_results_full <- map_dfr(
 
 # Postprocessing of ccf Results
 ccf_results_full <- ccf_results_full %>%
-  # Step 1: Rename Industry Code Field
-  rename(ID = industry_code) %>% 
-  # Step 2: Separate the original ID into indicator and industry_code
-  separate(ID, into = c("indicator", "industry_code"), sep = "_", remove = FALSE) %>%
-  # Step 3: Split indicator into base + diff components
-  separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
-  # Step 4: Compute difference column and level
-  mutate(
-    difference = if_else(is.na(diff_part), 0L, as.integer(diff_part)),
-    level = sapply(industry_code, get_level)
-  ) %>%
-  # Remove diff_part column (no longer needed)
-  select(-diff_part)
+  ccf_postprocess()
 
 # Extract peak lead/lag per Industry
 ccf_results_full_peak <- ccf_results_full %>%
@@ -253,3 +231,4 @@ ggplot(peak_heatmap_data, aes(x = peak_lag, y = indicator, fill = peak_count)) +
        x = "Peak Lag",
        y = "Indicator",
        fill = "Count")
+

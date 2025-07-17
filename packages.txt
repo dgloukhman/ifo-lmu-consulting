@@ -13,3 +13,6 @@ tseries
 urca
 furrr
 future
+future.apply
+zoo
+dynlm

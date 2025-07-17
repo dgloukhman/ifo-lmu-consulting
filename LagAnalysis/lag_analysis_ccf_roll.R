@@ -2,10 +2,17 @@
 # General
 
 # --------------------------------------------------------------------
+# Source Utility Function
+source("utils/setup_packages.R")
+source("utils/load_data.R")
+source("LagAnalysis/lag_utils.R")
+
+
+# --------------------------------------------------------------------
 # Installs necessary packages
 
-source("utils/setup_packages.R")
 install_packages_from_file()
+
 
 # --------------------------------------------------------------------
 # Necessary libaries
@@ -14,25 +21,25 @@ library("tidyverse")
 library("tsibble")
 library("tseries")
 library("ggplot2")
-library("feasts")
 library("furrr")
 library("future")
+library("MSwM")
+
 
 # --------------------------------------------------------------------
 # Enable parallel processing
 
 plan(multisession)  # Or use multisession, cluster, etc.
 
+
 # --------------------------------------------------------------------
 # Data Preparation
-
-source("utils/load_data.R")
-
 
 # Read Data
 ifo_tsbl <- read_ifo_data() %>%
   preprocess_ifo_data() %>%
   as_tsibble(key = industry_code, index = date)
+
 
 # --------------------------------------------------------------------
 # Setup 
@@ -46,12 +53,6 @@ ifo_tsbl_full <- ifo_tsbl %>%
   ) %>%
   ungroup()
 
-# # --------------------------------------------------------------------
-# # Filter option for performance
-# ifo_tsbl_full <- ifo_tsbl_full %>%
-#   filter(level %in% c(0,2))
-# # --------------------------------------------------------------------
-
 # Pivot Wider
 ifo_tsbl_full_wide <- ifo_tsbl_full %>%
   select(-level) %>%
@@ -61,18 +62,29 @@ ifo_tsbl_full_wide <- ifo_tsbl_full %>%
     values_from = -c(date, industry_code)
   )
 
-# --------------------------------------------------------------------
-# Create Rolling Window Tsibble
+# Main Index tsbl
+ifo_tsbl_main <- ifo_tsbl %>% 
+  filter(industry_code == "C0000000") %>% 
+  select(date, industry_code, KLD)
 
-source("LagAnalysis/lag_utils.R")
+
+# --------------------------------------------------------------------
+# Create Rolling Window tsbl
 
 ifo_tsbl_roll <- ifo_tsbl_full_wide %>%
-  tsbl_roll_wide(window_size = 24, step = 1)
+  tsbl_roll_wide(window_size = 120, step = 1)
+
 
 # ====================================================================
 # Test Stationarity
 
 source("LagAnalysis/stationarity_cointegration.R")
+
+# --------------------------------------------------------------------
+# Main Index Stationarity Test
+adf_results_main <- ifo_tsbl_main %>% 
+  as_tibble() %>% 
+  run_adf_tests() 
 
 # --------------------------------------------------------------------
 # Rolling Window Stationarity Test
@@ -91,24 +103,13 @@ adf_results_roll <- ifo_tsbl_roll %>%
 
 # Postprocessing of adf Results
 adf_results_roll <- adf_results_roll %>%
-  # Step 1: Rename original industry_code to preserve it
-  rename(ID = industry_code) %>%
-  # Step 2: Separate the original ID into indicator and industry_code
-  separate(ID, into = c("indicator", "industry_code"), sep = "_", remove = FALSE) %>%
-  # Step 3: Split indicator into base + diff components
-  separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
-  # Step 4: Compute difference column and level
-  mutate(
-    difference = if_else(is.na(diff_part), 0L, as.integer(diff_part)),
-    level = sapply(industry_code, get_level)
-  ) %>%
-  # Remove diff_part column (no longer needed)
-  select(-diff_part) %>%
+  adf_postprocess() %>%
   # Add the date_window_end to ID (enforces unique ID)
   mutate(ID = str_c(ID, date_window_end, sep = "_"))
 
 # Save Output as temp data file
 write_csv(adf_results_roll, "LagAnalysis/temp_data/adf_results_roll.csv")
+
 
 # ====================================================================
 # Cross-Correlation Analysis
@@ -117,13 +118,15 @@ write_csv(adf_results_roll, "LagAnalysis/temp_data/adf_results_roll.csv")
 # Setup
 
 # Main Index
-main_index = "KLD_C0000000"
+main_index = "KLD-diff1_C0000000"
 
 # Max lag for tests
 max_lag <- 12
 
 # Set target list
 stationary_targets_roll <- adf_results_roll %>%
+  # Increase stability of output by selecting first differences
+  filter(difference == 1) %>%
   # Step 1: keep only stationary
   filter(adf_is_stationary) %>%
   # Step 2: group per series
@@ -134,6 +137,7 @@ stationary_targets_roll <- adf_results_roll %>%
   # Step 4: exclude main index
   filter(!str_starts(ID, "main_index")) %>% 
   pull(ID)
+
 
 # --------------------------------------------------------------------
 # Compute Rolling CCF
@@ -172,25 +176,94 @@ ccf_tbl_roll <- ifo_tsbl_roll %>%
 
 # Postprocessing of ccf Results
 ccf_tbl_roll <- ccf_tbl_roll %>%
-  # Step 1: Rename Industry Code Field
-  rename(ID = industry_code) %>% 
-  # Step 2: Separate the original ID into indicator and industry_code
-  separate(ID, into = c("indicator", "industry_code"), sep = "_", remove = FALSE) %>%
-  # Step 3: Split indicator into base + diff components
-  separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
-  # Step 4: Compute difference column and level
-  mutate(
-    difference = if_else(is.na(diff_part), 0L, as.integer(diff_part)),
-    level = sapply(industry_code, get_level)
-  ) %>%
-  # Remove diff_part column (no longer needed)
-  select(-diff_part)
+  ccf_postprocess()
 
 # Save Output as temp data file
-write_csv(ccf_results_roll, "LagAnalysis/temp_data/ccf_results_roll.csv")
+write_csv(ccf_tbl_roll, "LagAnalysis/temp_data/ccf_results_roll.csv")
 
 
+# ====================================================================
+# Markov Switching Model 
 
- # ====================================================================
+# --------------------------------------------------------------------
+# Fit Markov Switching Model
+
+# Fit lm Intercept Model as Baseline
+msm_model <- msmFit(
+  object = lm(KLD ~ 1, data = ifo_tsbl_main),
+  p = 0,                      # number of lags
+  k = 2,                      # number of regimes                     
+  sw = c(TRUE, TRUE) 
+)
+
+plotProb(msm_model)    #Plots the Regimes
+
+ # Get the matrix of smoothed probabilities
+msm_probs_tbl <- msm_model %>%
+  extract_msm_probs_tbl(ifo_tsbl_main$date)
+
+# Extract most likely regime
+msm_regime_tbl <- msm_probs_tbl %>%
+  pivot_longer(cols = starts_with("r"), names_to = "regime", values_to = "prob") %>%
+  group_by(date) %>%
+  slice_max(order_by = prob, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  mutate(regime = parse_number(regime))
+
+
+# ====================================================================
 # Visualization
+
+# --------------------------------------------------------------------
+# Data Preprocessing
+
+
+# Regime classification to rolling window tsbl
+ccf_tbl_roll <- ccf_tbl_roll %>%
+  left_join(msm_regime_tbl %>% 
+              select(date, regime), 
+            by = c("date_window_end" = "date"))
+
+
+ccf_tbl_roll %>%
+  group_by(regime, indicator, lag) %>%
+  summarise(avg_corr = mean(correlation, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(x = lag, y = indicator, fill = avg_corr)) +
+  geom_tile() +
+  facet_wrap(~ regime) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  theme_minimal() +
+  labs(
+    title = "Average Cross-Correlation per Regime",
+    x = "Lag (months)",
+    y = "Indicator",
+    fill = "Avg Corr"
+  )
+
+ccf_tbl_roll %>%
+  ggplot(aes(x = date_window_end, y = lag, fill = correlation)) +
+  geom_tile() +
+  facet_wrap(~ indicator, scales = "free_y") +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  theme_minimal() +
+  labs(
+    title = "Rolling CCF Heatmap per Indicator",
+    x = "Window End Date",
+    y = "Lag (months)",
+    fill = "Correlation"
+  )
+
+ccf_tbl_roll %>%
+  filter(indicator == "KLD") %>%
+  ggplot(aes(x = date_window_end, y = lag, fill = correlation)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  scale_y_continuous(breaks = seq(-12, 12, by = 3)) +
+  theme_minimal() +
+  labs(
+    title = "Rolling CCF Heatmap for KLD (with KLD Time Series)",
+    x = "Window End Date",
+    y = "Lag (months)",
+    fill = "Correlation"
+  )
 
