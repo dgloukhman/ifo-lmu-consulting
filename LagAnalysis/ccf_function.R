@@ -99,3 +99,56 @@ run_rolling_ccf <- function(tsbl, main_index, target_code,
     .every = step
   )
 }
+
+# --------------------------------------------------------------------
+# Function: get_ccf_msm_dual
+# Purpose: Compute cross-correlation between MSM regime probs of a
+#          target series and a main reference series, handling regime
+#          label switching by comparing both regimes.
+# Arguments:
+#   - msm_wide: Wide-format tibble with regime 1 probabilities
+#   - main_index: Name of the reference column (character)
+#   - target_code: Name of the target column (character)
+#   - max_lag: Maximum lag to consider in both directions (default: 12)
+# Returns:
+#   - A tibble with: lag, correlation, regime_used, indicator
+# --------------------------------------------------------------------
+get_ccf_msm_dual <- function(msm_wide, main_index, target_code, max_lag = 12) {
+  # Extract regime probabilities
+  x_main <- msm_wide[[main_index]]
+  x_r1 <- msm_wide[[target_code]]
+  x_r2 <- 1 - x_r1  # Counter regime
+  
+  # Drop NAs
+  valid_idx <- complete.cases(x_main, x_r1)
+  x_main <- x_main[valid_idx]
+  x_r1 <- x_r1[valid_idx]
+  x_r2 <- x_r2[valid_idx]
+  
+  # Return empty if no overlap
+  if (length(x_main) == 0 || length(x_r1) == 0) return(tibble())
+  
+  # Compute both CCFs
+  ccf_r1 <- ccf(x_r1, x_main, lag.max = max_lag, plot = FALSE)
+  ccf_r2 <- ccf(x_r2, x_main, lag.max = max_lag, plot = FALSE)
+  
+  # Select best by maximum absolute correlation
+  max_r1 <- mean(abs(ccf_r1$acf), na.rm = TRUE)
+  max_r2 <- mean(abs(ccf_r2$acf), na.rm = TRUE)
+  
+  if (max_r1 >= max_r2) {
+    tibble(
+      lag = as.numeric(ccf_r1$lag),
+      correlation = as.numeric(ccf_r1$acf),
+      regime_used = "r1",
+      indicator = target_code
+    )
+  } else {
+    tibble(
+      lag = as.numeric(ccf_r2$lag),
+      correlation = as.numeric(ccf_r2$acf),
+      regime_used = "r2",
+      indicator = target_code
+    )
+  }
+}

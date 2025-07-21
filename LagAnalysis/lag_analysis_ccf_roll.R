@@ -6,7 +6,8 @@
 source("utils/setup_packages.R")
 source("utils/load_data.R")
 source("LagAnalysis/lag_utils.R")
-
+source("LagAnalysis/stationarity_cointegration.R")
+source("LagAnalysis/ccf_function.R")
 
 # --------------------------------------------------------------------
 # Installs necessary packages
@@ -29,7 +30,7 @@ library("MSwM")
 # --------------------------------------------------------------------
 # Enable parallel processing
 
-plan(multisession)  # Or use multisession, cluster, etc.
+plan(multisession)
 
 
 # --------------------------------------------------------------------
@@ -39,6 +40,7 @@ plan(multisession)  # Or use multisession, cluster, etc.
 ifo_tsbl <- read_ifo_data() %>%
   preprocess_ifo_data() %>%
   as_tsibble(key = industry_code, index = date)
+
 
 
 # --------------------------------------------------------------------
@@ -78,8 +80,6 @@ ifo_tsbl_roll <- ifo_tsbl_full_wide %>%
 # ====================================================================
 # Test Stationarity
 
-source("LagAnalysis/stationarity_cointegration.R")
-
 # --------------------------------------------------------------------
 # Main Index Stationarity Test
 adf_results_main <- ifo_tsbl_main %>% 
@@ -99,7 +99,9 @@ adf_results_roll <- ifo_tsbl_roll %>%
     run_adf_tests(df) %>%
       mutate(date_window_end = df$date_window_end[1],
              window_id = df$window_id[1])
-  })
+    },
+  .progress = TRUE
+  )
 
 # Postprocessing of adf Results
 adf_results_roll <- adf_results_roll %>%
@@ -141,7 +143,6 @@ stationary_targets_roll <- adf_results_roll %>%
 
 # --------------------------------------------------------------------
 # Compute Rolling CCF
-source("LagAnalysis/ccf_function.R")
 
 # Compute rolling ccf tibble
 ccf_tbl_roll <- ifo_tsbl_roll %>%
@@ -170,9 +171,11 @@ ccf_tbl_roll <- ifo_tsbl_roll %>%
           )
       } else {
         tibble()  # Skip if not in stationary list
-      }
-    })
-  })
+        }
+      })
+    },
+  .progress = TRUE
+  )
 
 # Postprocessing of ccf Results
 ccf_tbl_roll <- ccf_tbl_roll %>%
@@ -193,7 +196,7 @@ msm_model <- msmFit(
   object = lm(KLD ~ 1, data = ifo_tsbl_main),
   p = 0,                      # number of lags
   k = 2,                      # number of regimes                     
-  sw = c(TRUE, TRUE) 
+  sw = c(TRUE, FALSE) 
 )
 
 plotProb(msm_model)    #Plots the Regimes
@@ -217,6 +220,19 @@ msm_regime_tbl <- msm_probs_tbl %>%
 # --------------------------------------------------------------------
 # Data Preprocessing
 
+# Analyze amount of stationary indices
+adf_results_roll %>%
+  filter(adf_is_stationary == TRUE, 
+         difference == 1) %>%
+  count(date_window_end) %>%
+  ggplot(aes(x = date_window_end, y = n)) +
+  geom_col() +
+  labs(
+    title = "Number of Stationary Series Over Time",
+    x = "Date Window End",
+    y = "Count of Stationary Series"
+  ) +
+  theme_minimal()
 
 # Regime classification to rolling window tsbl
 ccf_tbl_roll <- ccf_tbl_roll %>%
