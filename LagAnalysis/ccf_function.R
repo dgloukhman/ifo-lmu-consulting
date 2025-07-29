@@ -133,8 +133,8 @@ get_ccf_msm_dual <- function(msm_wide, main_index, target_code, max_lag = 12) {
   ccf_r2 <- ccf(x_r2, x_main, lag.max = max_lag, plot = FALSE)
   
   # Select best by maximum absolute correlation
-  max_r1 <- mean(abs(ccf_r1$acf), na.rm = TRUE)
-  max_r2 <- mean(abs(ccf_r2$acf), na.rm = TRUE)
+  max_r1 <- abs(mean(ccf_r1$acf, na.rm = TRUE))
+  max_r2 <- abs(mean(ccf_r2$acf, na.rm = TRUE))
   
   if (max_r1 >= max_r2) {
     tibble(

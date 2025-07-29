@@ -120,16 +120,28 @@ write_csv(adf_results_roll, "LagAnalysis/temp_data/adf_results_roll.csv")
 # Setup
 
 # Main Index
-main_index = "KLD-diff1_C0000000"
+main_index = "KLD-C0000000"
 
 # Max lag for tests
 max_lag <- 12
+
+
+# Pivot wider Rolling Window
+ifo_tsbl_roll_wide <- ifo_tsbl_roll %>% 
+  select(-date_window_end) %>%
+  pivot_wider(
+  id_cols = date,
+  names_from = window_id,
+  values_from = -c(date, window_id)
+)
 
 # Set target list
 stationary_targets_roll <- adf_results_roll %>%
   # Increase stability of output by selecting first differences
   filter(difference == 1) %>%
-  # Step 1: keep only stationary
+  # Step 1: exclude main index
+  filter(!str_starts(ID, "main_index")) %>%
+  # Step 2: keep only stationary
   filter(adf_is_stationary) %>%
   # Step 2: group per series
   group_by(indicator, industry_code, date_window_end) %>%
@@ -149,33 +161,38 @@ ccf_tbl_roll <- ifo_tsbl_roll %>%
   as_tibble() %>%
   group_by(window_id) %>%
   group_split() %>%
-  future_map_dfr(~ {
+  map_dfr(~ {
     df <- .x
     end_date <- df$date_window_end[1]
     
-    # Get all target codes in this window (excluding main index + metadata)
+    # Target indicators = all series excluding metadata + main
     target_codes <- setdiff(
       names(df),
       c("date", "date_window_end", "window_id", main_index)
     )
     
-    # Compute CCFs for all eligible target codes
-    map_dfr(target_codes, function(target_code) {
-      current_ID <- str_c(target_code, end_date, sep = "_")
-      
-      if (current_ID %in% stationary_targets_roll) {
-        get_ccf_full(df, main_index, target_code, max_lag = 12) %>%
-          mutate(
-            date_window_end = end_date,
-            window_id = df$window_id[1]
-          )
-      } else {
-        tibble()  # Skip if not in stationary list
-        }
-      })
-    },
-  .progress = TRUE
-  )
+    # Parallelize over indicators (within window)
+    future_map_dfr(
+      .x = target_codes,
+      .f = ~ {
+        x <- df[[.x]]
+        y <- df[[main_index]]
+        
+        if (all(is.na(x)) || all(is.na(y))) return(tibble())
+        
+        ccf_obj <- ccf(x, y, lag.max = max_lag, plot = FALSE)
+        
+        tibble(
+          lag = as.numeric(ccf_obj$lag),
+          correlation = as.numeric(ccf_obj$acf),
+          indicator = .x,
+          date_window_end = end_date,
+          window_id = df$window_id[1]
+        )
+      },
+      .progress = TRUE  # Inner progress bar usually not helpful here
+    )
+  })
 
 # Postprocessing of ccf Results
 ccf_tbl_roll <- ccf_tbl_roll %>%
