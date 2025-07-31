@@ -30,7 +30,7 @@ library("MSwM")
 # --------------------------------------------------------------------
 # Enable parallel processing
 
-plan(multisession)
+plan(multisession, workers = 8)
 
 
 # --------------------------------------------------------------------
@@ -120,7 +120,7 @@ write_csv(adf_results_roll, "LagAnalysis/temp_data/adf_results_roll.csv")
 # Setup
 
 # Main Index
-main_index = "KLD-C0000000"
+main_index = "KLD_C0000000"
 
 # Max lag for tests
 max_lag <- 12
@@ -156,43 +156,40 @@ stationary_targets_roll <- adf_results_roll %>%
 # --------------------------------------------------------------------
 # Compute Rolling CCF
 
+# Set target indices for ccf calclation
+target_codes <- ifo_tsbl_roll %>%
+  names() %>%
+  setdiff(c("date", "date_window_end", "window_id", main_index))
+
 # Compute rolling ccf tibble
 ccf_tbl_roll <- ifo_tsbl_roll %>%
   as_tibble() %>%
   group_by(window_id) %>%
   group_split() %>%
-  map_dfr(~ {
-    df <- .x
+  .[1:50] %>%  # Or whatever window slices you want
+  future_map_dfr(function(df) {
     end_date <- df$date_window_end[1]
-    
-    # Target indicators = all series excluding metadata + main
-    target_codes <- setdiff(
-      names(df),
-      c("date", "date_window_end", "window_id", main_index)
-    )
-    
-    # Parallelize over indicators (within window)
-    future_map_dfr(
-      .x = target_codes,
-      .f = ~ {
-        x <- df[[.x]]
+    # target_codes <- setdiff(
+    #   names(df),
+    #   c("date", "date_window_end", "window_id", main_index)
+    # )
+    map_dfr(
+      target_codes,
+      function(ind) {
+        x <- df[[ind]]
         y <- df[[main_index]]
-        
-        if (all(is.na(x)) || all(is.na(y))) return(tibble())
-        
+        if (any(is.na(x)) || any(is.na(y))) return(tibble())
         ccf_obj <- ccf(x, y, lag.max = max_lag, plot = FALSE)
-        
         tibble(
           lag = as.numeric(ccf_obj$lag),
           correlation = as.numeric(ccf_obj$acf),
-          indicator = .x,
+          indicator = ind,
           date_window_end = end_date,
           window_id = df$window_id[1]
         )
-      },
-      .progress = TRUE  # Inner progress bar usually not helpful here
+      }
     )
-  })
+  }, .progress = TRUE)
 
 # Postprocessing of ccf Results
 ccf_tbl_roll <- ccf_tbl_roll %>%
@@ -299,4 +296,3 @@ ccf_tbl_roll %>%
     y = "Lag (months)",
     fill = "Correlation"
   )
-
