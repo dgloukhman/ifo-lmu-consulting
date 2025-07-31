@@ -37,11 +37,13 @@ plan(multisession, workers = 8)
 # Data Preparation
 
 # Read Data
-ifo_tsbl <- read_ifo_data() %>%
-  preprocess_ifo_data() %>%
+# ifo_tsbl <- read_ifo_data() %>%
+#   preprocess_ifo_data() %>%
+#   as_tsibble(key = industry_code, index = date)
+
+# Read Data Alternative
+ifo_tsbl <- read_csv("Data/ifo_tsbl.csv") %>%
   as_tsibble(key = industry_code, index = date)
-
-
 
 # --------------------------------------------------------------------
 # Setup 
