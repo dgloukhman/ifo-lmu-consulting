@@ -16,3 +16,6 @@ future
 future.apply
 zoo
 dynlm
+RTransferEntropy
+mpmi
+energy

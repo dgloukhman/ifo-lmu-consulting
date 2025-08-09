@@ -7,7 +7,7 @@ source("utils/setup_packages.R")
 source("utils/load_data.R")
 source("LagAnalysis/lag_utils.R")
 source("LagAnalysis/stationarity_cointegration.R")
-source("LagAnalysis/ccf_function.R")
+source("LagAnalysis/lag_functions.R")
 
 # --------------------------------------------------------------------
 # Installs necessary packages
@@ -20,9 +20,7 @@ install_packages_from_file()
 
 library("tidyverse")
 library("tsibble")
-library("tseries")
 library("ggplot2")
-library("furrr")
 library("future")
 library("MSwM")
 
@@ -37,13 +35,13 @@ plan(multisession, workers = 8)
 # Data Preparation
 
 # Read Data
-# ifo_tsbl <- read_ifo_data() %>%
-#   preprocess_ifo_data() %>%
-#   as_tsibble(key = industry_code, index = date)
+ifo_tsbl <- read_ifo_data() %>%
+  preprocess_ifo_data() %>%
+  as_tsibble(key = industry_code, index = date)
 
 # Read Data Alternative
-ifo_tsbl <- read_csv("Data/ifo_tsbl.csv") %>%
-  as_tsibble(key = industry_code, index = date)
+# ifo_tsbl <- read_csv("Data/ifo_tsbl.csv") %>%
+#   as_tsibble(key = industry_code, index = date)
 
 # --------------------------------------------------------------------
 # Setup 
@@ -77,6 +75,15 @@ ifo_tsbl_main <- ifo_tsbl %>%
 
 ifo_tsbl_roll <- ifo_tsbl_full_wide %>%
   tsbl_roll_wide(window_size = 120, step = 1)
+
+# Pivot wider Rolling Window
+ifo_tsbl_roll_wide <- ifo_tsbl_roll %>% 
+  select(-date_window_end) %>%
+  pivot_wider(
+    id_cols = date,
+    names_from = window_id,
+    values_from = -c(date, window_id)
+  )
 
 
 # ====================================================================
@@ -127,16 +134,6 @@ main_index = "KLD_C0000000"
 # Max lag for tests
 max_lag <- 12
 
-
-# Pivot wider Rolling Window
-ifo_tsbl_roll_wide <- ifo_tsbl_roll %>% 
-  select(-date_window_end) %>%
-  pivot_wider(
-  id_cols = date,
-  names_from = window_id,
-  values_from = -c(date, window_id)
-)
-
 # Set target list
 stationary_targets_roll <- adf_results_roll %>%
   # Increase stability of output by selecting first differences
@@ -168,13 +165,9 @@ ccf_tbl_roll <- ifo_tsbl_roll %>%
   as_tibble() %>%
   group_by(window_id) %>%
   group_split() %>%
-  .[1:50] %>%  # Or whatever window slices you want
+  #.[1:50] %>% 
   future_map_dfr(function(df) {
     end_date <- df$date_window_end[1]
-    # target_codes <- setdiff(
-    #   names(df),
-    #   c("date", "date_window_end", "window_id", main_index)
-    # )
     map_dfr(
       target_codes,
       function(ind) {
@@ -200,6 +193,46 @@ ccf_tbl_roll <- ccf_tbl_roll %>%
 # Save Output as temp data file
 write_csv(ccf_tbl_roll, "LagAnalysis/temp_data/ccf_results_roll.csv")
 
+# --------------------------------------------------------------------
+# Compute Rolling dCor
+
+# Set target indices for ccf calclation
+target_codes <- ifo_tsbl_roll %>%
+  names() %>%
+  setdiff(c("date", "date_window_end", "window_id", main_index))
+
+# Compute rolling ccf tibble
+dcor_tbl_roll <- ifo_tsbl_roll %>%
+  as_tibble() %>%
+  group_by(window_id) %>%
+  group_split() %>%
+  #.[1:4] %>% 
+  future_map_dfr(function(df) {
+    end_date <- df$date_window_end[1]
+    map_dfr(
+      target_codes,
+      function(ind) {
+        x <- df[[ind]]
+        y <- df[[main_index]]
+        if (any(is.na(x)) || any(is.na(y))) return(tibble())
+        get_dcor_pair(x, y, max_lag = max_lag) %>%
+          mutate(
+            indicator = ind,
+            date_window_end = end_date,
+            window_id = df$window_id[1]
+          )
+        }
+      )
+    }, 
+    .options = furrr_options(seed = TRUE),
+    .progress = TRUE)
+
+# Postprocessing of ccf Results
+ccf_tbl_roll <- ccf_tbl_roll %>%
+  ccf_postprocess()
+
+# Save Output as temp data file
+write_csv(ccf_tbl_roll, "LagAnalysis/temp_data/ccf_results_roll.csv")
 
 # ====================================================================
 # Markov Switching Model 
@@ -220,15 +253,6 @@ plotProb(msm_model)    #Plots the Regimes
  # Get the matrix of smoothed probabilities
 msm_probs_tbl <- msm_model %>%
   extract_msm_probs_tbl(ifo_tsbl_main$date)
-
-# Extract most likely regime
-msm_regime_tbl <- msm_probs_tbl %>%
-  pivot_longer(cols = starts_with("r"), names_to = "regime", values_to = "prob") %>%
-  group_by(date) %>%
-  slice_max(order_by = prob, n = 1, with_ties = FALSE) %>%
-  ungroup() %>%
-  mutate(regime = parse_number(regime))
-
 
 # ====================================================================
 # Visualization

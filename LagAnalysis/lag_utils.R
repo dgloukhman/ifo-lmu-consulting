@@ -111,3 +111,41 @@ ccf_postprocess <- function(ccf_results_full) {
     ) %>%
     select(-diff_part)
 }
+
+# --------------------------------------------------------------------
+# Postprocessing: MI Analysis Results
+# Description:
+#   Cleans and annotates the output of mutual information results.
+#   Adds separate fields for indicator name, industry code,
+#   number of differences, and hierarchy level.
+# --------------------------------------------------------------------
+mi_postprocess <- function(mi_results_full) {
+  mi_results_full %>%
+    rename(ID = industry_code) %>%
+    separate(ID, into = c("indicator", "industry_code"), sep = "_", remove = FALSE) %>%
+    separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
+    mutate(
+      difference = if_else(is.na(diff_part), 0L, as.integer(diff_part)),
+      level = sapply(industry_code, get_level)
+    ) %>%
+    select(-diff_part)
+}
+
+# --------------------------------------------------------------------
+# Postprocessing: MI Analysis Results
+# Description:
+#   Cleans and annotates the output of mutual information results.
+#   Adds separate fields for indicator name, industry code,
+#   number of differences, and hierarchy level.
+# --------------------------------------------------------------------
+dcor_postprocess <- function(mi_results_full) {
+  dcor_results_full %>%
+    rename(ID = industry_code) %>%
+    separate(ID, into = c("indicator", "industry_code"), sep = "_", remove = FALSE) %>%
+    separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
+    mutate(
+      difference = if_else(is.na(diff_part), 0L, as.integer(diff_part)),
+      level = sapply(industry_code, get_level)
+    ) %>%
+    select(-diff_part)
+}
