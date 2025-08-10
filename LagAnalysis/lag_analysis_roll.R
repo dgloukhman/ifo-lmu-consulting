@@ -120,7 +120,7 @@ adf_results_roll <- adf_results_roll %>%
 
 # Save Output as temp data file
 write_csv(adf_results_roll, "LagAnalysis/temp_data/adf_results_roll.csv")
-
+# adf_results_roll <- read_csv("LagAnalysis/temp_data/adf_results_roll.csv")
 
 # ====================================================================
 # Cross-Correlation Analysis
@@ -184,7 +184,9 @@ ccf_tbl_roll <- ifo_tsbl_roll %>%
         )
       }
     )
-  }, .progress = TRUE)
+  }, 
+  .options = furrr_options(seed = TRUE),
+  .progress = TRUE)
 
 # Postprocessing of ccf Results
 ccf_tbl_roll <- ccf_tbl_roll %>%
@@ -192,6 +194,7 @@ ccf_tbl_roll <- ccf_tbl_roll %>%
 
 # Save Output as temp data file
 write_csv(ccf_tbl_roll, "LagAnalysis/temp_data/ccf_results_roll.csv")
+# ccf_tbl_roll <- read_csv("LagAnalysis/temp_data/ccf_results_roll.csv")
 
 # --------------------------------------------------------------------
 # Compute Rolling dCor
@@ -228,11 +231,12 @@ dcor_tbl_roll <- ifo_tsbl_roll %>%
     .progress = TRUE)
 
 # Postprocessing of ccf Results
-ccf_tbl_roll <- ccf_tbl_roll %>%
-  ccf_postprocess()
+dcor_tbl_roll <- dcor_tbl_roll %>%
+  dcor_postprocess()
 
 # Save Output as temp data file
-write_csv(ccf_tbl_roll, "LagAnalysis/temp_data/ccf_results_roll.csv")
+write_csv(dcor_tbl_roll, "LagAnalysis/temp_data/dcor_results_roll.csv")
+# dcor_tbl_roll <- read_csv("LagAnalysis/temp_data/dcor_results_roll.csv")
 
 # ====================================================================
 # Markov Switching Model 
