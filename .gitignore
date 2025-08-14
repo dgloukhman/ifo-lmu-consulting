@@ -188,8 +188,9 @@ cython_debug/
 JakobsTrials/
 Test.R
 
-# Temp Data Files
+# Data Folders/Files
 LagAnalysis/temp_data/
+LagAnalysis/results/
 
 
 # Ignore html outputs of Notebooks, as they dont render 

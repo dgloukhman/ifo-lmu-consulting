@@ -102,7 +102,7 @@ adf_postprocess <- function(adf_results_full) {
 # --------------------------------------------------------------------
 ccf_postprocess <- function(ccf_results_full) {
   ccf_results_full %>%
-    rename(ID = industry_code) %>%
+    rename(ID = indicator) %>%
     separate(ID, into = c("indicator", "industry_code"), sep = "_", remove = FALSE) %>%
     separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
     mutate(
@@ -121,7 +121,7 @@ ccf_postprocess <- function(ccf_results_full) {
 # --------------------------------------------------------------------
 mi_postprocess <- function(mi_results_full) {
   mi_results_full %>%
-    rename(ID = industry_code) %>%
+    rename(ID = indicator) %>%
     separate(ID, into = c("indicator", "industry_code"), sep = "_", remove = FALSE) %>%
     separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
     mutate(
@@ -138,9 +138,9 @@ mi_postprocess <- function(mi_results_full) {
 #   Adds separate fields for indicator name, industry code,
 #   number of differences, and hierarchy level.
 # --------------------------------------------------------------------
-dcor_postprocess <- function(mi_results_full) {
+dcor_postprocess <- function(dcor_results_full) {
   dcor_results_full %>%
-    rename(ID = industry_code) %>%
+    rename(ID = indicator) %>%
     separate(ID, into = c("indicator", "industry_code"), sep = "_", remove = FALSE) %>%
     separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
     mutate(

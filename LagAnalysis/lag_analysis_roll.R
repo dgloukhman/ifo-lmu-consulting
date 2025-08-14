@@ -2,32 +2,27 @@
 # General
 
 # --------------------------------------------------------------------
-# Source Utility Function
+# Installs necessary packages
 source("utils/setup_packages.R")
+install_packages_from_file()
+
+# --------------------------------------------------------------------
+# Source Utility Function
 source("utils/load_data.R")
 source("LagAnalysis/lag_utils.R")
 source("LagAnalysis/stationarity_cointegration.R")
 source("LagAnalysis/lag_functions.R")
 
-# --------------------------------------------------------------------
-# Installs necessary packages
-
-install_packages_from_file()
-
 
 # --------------------------------------------------------------------
 # Necessary libaries
-
 library("tidyverse")
 library("tsibble")
-library("ggplot2")
 library("future")
-library("MSwM")
 
 
 # --------------------------------------------------------------------
 # Enable parallel processing
-
 plan(multisession, workers = 8)
 
 
@@ -64,15 +59,10 @@ ifo_tsbl_full_wide <- ifo_tsbl_full %>%
     values_from = -c(date, industry_code)
   )
 
-# Main Index tsbl
-ifo_tsbl_main <- ifo_tsbl %>% 
-  filter(industry_code == "C0000000") %>% 
-  select(date, industry_code, KLD)
-
-
 # --------------------------------------------------------------------
-# Create Rolling Window tsbl
+# Rolling Window Setup
 
+# Create Rolling Window tsbl
 ifo_tsbl_roll <- ifo_tsbl_full_wide %>%
   tsbl_roll_wide(window_size = 120, step = 1)
 
@@ -88,12 +78,6 @@ ifo_tsbl_roll_wide <- ifo_tsbl_roll %>%
 
 # ====================================================================
 # Test Stationarity
-
-# --------------------------------------------------------------------
-# Main Index Stationarity Test
-adf_results_main <- ifo_tsbl_main %>% 
-  as_tibble() %>% 
-  run_adf_tests() 
 
 # --------------------------------------------------------------------
 # Rolling Window Stationarity Test
@@ -119,11 +103,12 @@ adf_results_roll <- adf_results_roll %>%
   mutate(ID = str_c(ID, date_window_end, sep = "_"))
 
 # Save Output as temp data file
-write_csv(adf_results_roll, "LagAnalysis/temp_data/adf_results_roll.csv")
+write_csv(adf_results_roll, "LagAnalysis/results/adf_results_roll.csv")
 # adf_results_roll <- read_csv("LagAnalysis/temp_data/adf_results_roll.csv")
 
+
 # ====================================================================
-# Cross-Correlation Analysis
+# Correlation Analysis
 
 # --------------------------------------------------------------------
 # Setup
@@ -193,7 +178,7 @@ ccf_tbl_roll <- ccf_tbl_roll %>%
   ccf_postprocess()
 
 # Save Output as temp data file
-write_csv(ccf_tbl_roll, "LagAnalysis/temp_data/ccf_results_roll.csv")
+write_csv(ccf_tbl_roll, "LagAnalysis/results/ccf_results_roll.csv")
 # ccf_tbl_roll <- read_csv("LagAnalysis/temp_data/ccf_results_roll.csv")
 
 # --------------------------------------------------------------------
@@ -209,7 +194,7 @@ dcor_tbl_roll <- ifo_tsbl_roll %>%
   as_tibble() %>%
   group_by(window_id) %>%
   group_split() %>%
-  #.[1:4] %>% 
+  #.[1:50] %>% 
   future_map_dfr(function(df) {
     end_date <- df$date_window_end[1]
     map_dfr(
@@ -235,94 +220,5 @@ dcor_tbl_roll <- dcor_tbl_roll %>%
   dcor_postprocess()
 
 # Save Output as temp data file
-write_csv(dcor_tbl_roll, "LagAnalysis/temp_data/dcor_results_roll.csv")
+write_csv(dcor_tbl_roll, "LagAnalysis/results/dcor_results_roll.csv")
 # dcor_tbl_roll <- read_csv("LagAnalysis/temp_data/dcor_results_roll.csv")
-
-# ====================================================================
-# Markov Switching Model 
-
-# --------------------------------------------------------------------
-# Fit Markov Switching Model
-
-# Fit lm Intercept Model as Baseline
-msm_model <- msmFit(
-  object = lm(KLD ~ 1, data = ifo_tsbl_main),
-  p = 0,                      # number of lags
-  k = 2,                      # number of regimes                     
-  sw = c(TRUE, FALSE) 
-)
-
-plotProb(msm_model)    #Plots the Regimes
-
- # Get the matrix of smoothed probabilities
-msm_probs_tbl <- msm_model %>%
-  extract_msm_probs_tbl(ifo_tsbl_main$date)
-
-# ====================================================================
-# Visualization
-
-# --------------------------------------------------------------------
-# Data Preprocessing
-
-# Analyze amount of stationary indices
-adf_results_roll %>%
-  filter(adf_is_stationary == TRUE, 
-         difference == 1) %>%
-  count(date_window_end) %>%
-  ggplot(aes(x = date_window_end, y = n)) +
-  geom_col() +
-  labs(
-    title = "Number of Stationary Series Over Time",
-    x = "Date Window End",
-    y = "Count of Stationary Series"
-  ) +
-  theme_minimal()
-
-# Regime classification to rolling window tsbl
-ccf_tbl_roll <- ccf_tbl_roll %>%
-  left_join(msm_regime_tbl %>% 
-              select(date, regime), 
-            by = c("date_window_end" = "date"))
-
-
-ccf_tbl_roll %>%
-  group_by(regime, indicator, lag) %>%
-  summarise(avg_corr = mean(correlation, na.rm = TRUE), .groups = "drop") %>%
-  ggplot(aes(x = lag, y = indicator, fill = avg_corr)) +
-  geom_tile() +
-  facet_wrap(~ regime) +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
-  theme_minimal() +
-  labs(
-    title = "Average Cross-Correlation per Regime",
-    x = "Lag (months)",
-    y = "Indicator",
-    fill = "Avg Corr"
-  )
-
-ccf_tbl_roll %>%
-  ggplot(aes(x = date_window_end, y = lag, fill = correlation)) +
-  geom_tile() +
-  facet_wrap(~ indicator, scales = "free_y") +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
-  theme_minimal() +
-  labs(
-    title = "Rolling CCF Heatmap per Indicator",
-    x = "Window End Date",
-    y = "Lag (months)",
-    fill = "Correlation"
-  )
-
-ccf_tbl_roll %>%
-  filter(indicator == "KLD") %>%
-  ggplot(aes(x = date_window_end, y = lag, fill = correlation)) +
-  geom_tile() +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
-  scale_y_continuous(breaks = seq(-12, 12, by = 3)) +
-  theme_minimal() +
-  labs(
-    title = "Rolling CCF Heatmap for KLD (with KLD Time Series)",
-    x = "Window End Date",
-    y = "Lag (months)",
-    fill = "Correlation"
-  )

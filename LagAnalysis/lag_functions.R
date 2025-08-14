@@ -50,7 +50,7 @@ get_ccf_full <- function(tsbl, main_index, target_code, max_lag = 12) {
   tibble(
     lag = as.numeric(ccf_obj$lag),
     correlation = as.numeric(ccf_obj$acf),
-    industry_code = target_code
+    indicator = target_code
   )
 }
 
@@ -101,7 +101,7 @@ get_mi_full <- function(tsbl, main_index, target_code, max_lag = 12) {
   tibble(
     lag = lags,
     mi = mi_vals,
-    industry_code = target_code
+    indicator = target_code
   )
 }
 
@@ -152,7 +152,7 @@ get_dcor_full <- function(tsbl, main_index, target_code, max_lag = 12) {
   tibble(
     lag = lags,
     dcor = dcor_vals,
-    industry_code = target_code
+    indicator = target_code
   )
 }
 
