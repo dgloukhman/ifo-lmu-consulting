@@ -194,7 +194,19 @@ compute_balanced_median <- function(df){
 **Level Restriction**
 Plot Industrie codes per Level
 ```{r Industries per Level}
-
+ccf_tbl_full %>%
+  filter(level > 0,
+         difference == 0) %>%
+  distinct(industry_code, level) %>%
+  ggplot(aes(x = level, fill = factor(level))) +
+  geom_bar(position = "stack") +
+  theme_minimal() +
+  labs(
+    title = "Number of Industry Codes by Level",
+    x = "Sector",
+    y = "Count",
+    fill = "Level"
+  )
 ```
 
 - Few Industries in levels 4 and 5
@@ -679,15 +691,29 @@ ggplot(plot_data, aes(x = date_window_end, y = value, color = metric)) +
 Plot: Overall set size for differnt k Values
 ```{r}
 # Top 30 ranked Industry Codes per question
-top30_roll <- dcor_tbl_roll_rank %>%
-  filter(rank <= 1) %>%
-  pull(industry_code) %>%
-  unique()
+k_vec <- c(1,seq.int(10,130,10))
+
+uniq_by_k <- map_dfr(k_vec, ~
+  dcor_tbl_roll_rank %>%
+    filter(rank <= .x) %>%
+    summarise(k = .x,
+              n_unique_industries = n_distinct(industry_code))
+)
+
+# Plot
+uniq_by_k %>%
+  ggplot(aes(x = k, y = n_unique_industries)) +
+  geom_line() +
+  geom_point() +
+  theme_minimal() +
+  labs(x = "k (rank cutoff)", y = "Distinct industry codes")
 ```
 
+- Figure shows that almost all industry codes are in the top 10 for some question 
+and time window at least once
 - When using Top k industry codes based on question and time window the overall 
-set size quickly becomes too much
-- 
+set size quickly becomes too much to be a small subset
+
 - 
 - ...
 
