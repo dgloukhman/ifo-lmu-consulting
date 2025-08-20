@@ -191,8 +191,10 @@ Test.R
 # Data Folders/Files
 LagAnalysis/temp_data/
 LagAnalysis/results/
+lag_report_files/
 
 
-# Ignore html outputs of Notebooks, as they dont render 
+# Ignore html outputs of Notebooks, as they dont render
+*.html
 *.htmlplots
 plots/*
