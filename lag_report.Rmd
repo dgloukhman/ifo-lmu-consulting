@@ -1,0 +1,740 @@
+---
+title: "lag_report"
+output: html_document
+date: "2025-08-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r install packages, include=FALSE}
+source("utils/setup_packages.R")
+install_packages_from_file()
+```
+
+```{r source util functions, include=FALSE}
+source("utils/load_data.R")
+source("LagAnalysis/lag_utils.R")
+source("LagAnalysis/lag_functions.R")
+source("LagAnalysis/stationarity_cointegration.R")
+```
+
+```{r libraries, include=FALSE}
+library("tidyverse")
+library("tsibble")
+library("ggplot2")
+library("scales")
+library("ggh4x")
+```
+
+## Research Question
+
+We examine the lead/lag structure of the individual indices relative to the main 
+index in more detail. In doing so, we analyze the relationships between the 
+indices both in general and specifically around turning points. The aim is to 
+provide a comprehensive overview and to identify starting points for further 
+research projects. In particular, we focus on identifying a subset of indices 
+that explain the development of the main index especially well in advance.
+
+
+## Correlation Analysis
+
+### Data Basis for Correlation Analysis
+
+The monthly data was analyzed in two seperate approaches:
+
+- Full window based on data from **1991-01-01** to **2025-02-01**
+- Rolling window with a **10 year window frame** and a **1 month step size**, 
+starting in 2000 with first complete 10 year window
+
+For each Dataset we extract the correlation for each lag as well as the peak 
+correlation across a lag of +/-6 months. The window of +/-6 months was specified
+in discussion with the project partners to allow for a qualitative and causal 
+interpretation. 
+
+They choice for the rolling window size was mainly motivated by:finding a balance 
+between:
+
+- small enough window seize to detect changes over time, 
+- large enough seize to not be heavily influence by trends (stationary)
+- keep the computational demand within reasonable limits.
+
+
+```{r Data Import, message=FALSE}
+# Full Analysis Data
+ccf_tbl_full <- read_csv("LagAnalysis/results/ccf_results_full.csv") %>%
+  mutate(sector = str_sub(industry_code, 1, 3)) %>%
+  rename(corr = correlation)
+ccf_tbl_full_peak <- read_csv("LagAnalysis/results/ccf_results_full_peak.csv") %>%
+  mutate(sector = str_sub(industry_code, 1, 3)) %>%
+  rename(corr = peak_corr)
+dcor_tbl_full <- read_csv("LagAnalysis/results/dcor_results_full.csv") %>%
+  mutate(sector = str_sub(industry_code, 1, 3)) %>%
+  rename(corr = dcor)
+dcor_tbl_full_peak <- read_csv("LagAnalysis/results/dcor_results_full_peak.csv") %>%
+  mutate(sector = str_sub(industry_code, 1, 3)) %>%
+  rename(corr = peak_corr)
+adf_tbl_full <- read_csv("LagAnalysis/results/adf_results_full.csv") %>%
+  mutate(sector = str_sub(industry_code, 1, 3))
+
+# Rolling Window Analysis Data
+ccf_tbl_roll <- read_csv("LagAnalysis/results/ccf_results_roll.csv") %>%
+  mutate(sector = str_sub(industry_code, 1, 3)) %>%
+  rename(corr = correlation)
+ccf_tbl_roll_peak <- read_csv("LagAnalysis/results/ccf_results_roll_peak.csv") %>%
+  mutate(sector = str_sub(industry_code, 1, 3)) %>%
+  rename(corr = peak_corr)
+dcor_tbl_roll <- read_csv("LagAnalysis/results/dcor_results_roll.csv") %>%
+  mutate(sector = str_sub(industry_code, 1, 3)) %>%
+  rename(corr = dcor)
+dcor_tbl_roll_peak <- read_csv("LagAnalysis/results/dcor_results_roll_peak.csv") %>%
+  mutate(sector = str_sub(industry_code, 1, 3)) %>% 
+  rename(corr = peak_dcor)
+adf_tbl_roll <- read_csv("LagAnalysis/results/adf_results_roll.csv") %>%
+  mutate(sector = str_sub(industry_code, 1, 3))
+```
+
+
+### Methods for the Analysis of Correlation Structure
+
+#### Lag Aggregation
+
+- For several different parts of the analysis aggregation over las necessary
+- The choice of these aggregation logics is motivated by practical point of view
+- Multiple forms of aggregation:
+  - Peak Correlation over lags -6 to +6 months: stable measure for correlation
+  that is not depended on lag window size
+  - Mean Correlation over lags -6 to +6 months: smoother, more robust measure of 
+  overall correlation structure that also captures distribution across lags
+  - Mean Correlation over lags -6 to -1 months: measure for general predictive
+  correlation with more focus on short term predictability
+  - Mean Correlation over lags -6 to -4 months: measure for longterm predictive
+  correlation
+
+
+#### Dcor vs CCF
+
+To validate the findings the correlation between the individual time series and
+the main index (*C0000000 - KLD*) was analyzed with two different approaches:
+
+- Cross Correlation using **stats::ccf**
+- Distance Correlation using **energy::dcor**
+
+The distance correlation can be seen as an upper bound for the cross correlation 
+function that measures the linear dependence between the different time series. 
+For our analysis the main benefit of the distance correlation is the ability to 
+verify our Cross Correlation Results as well as having a "un-directed" correlation
+measure. 
+
+
+#### Industry Aggregation
+
+**Hierarchical Aggreagtion:**
+- The hierarchical tree structure in the data creates an inherent imbalance when 
+aggregating industry codes across sectors (2-digit codes).
+- This imbalance arises from the different levels of granularity in how industry
+codes are aggregated.
+- Sectors with higher granularity have a deeper tree structure, resulting in 
+more leaf nodes.
+- Smaller sectors have shallower trees with fewer leaf nodes.
+
+Plot: Amount of unique industry codes per sector -> showing imbalances between 
+the different sector: 
+```{r Industries per Sector, warning=FALSE}
+ccf_tbl_full %>%
+  filter(level > 0,
+         difference == 0) %>%
+  distinct(industry_code, sector, level) %>%
+  ggplot(aes(x = sector, fill = factor(level))) +
+  geom_bar(position = "stack") +
+  theme_minimal() +
+  labs(
+    title = "Number of Industry Codes by Level",
+    x = "Sector",
+    y = "Count",
+    fill = "Level"
+  )
+```
+
+- Challenge for our Analysis since indirectly biases/weights the sectors based on 
+amount of industry codes
+- In the correlation analysis, an implicit weighting bias occurs due to 
+sector granularity.
+- Sectors with higher granularity contribute more because multiple industry codes 
+from those sectors are included if they show good correlation.
+- Sectors with lower granularity contribute less, even if their correlation is 
+good, since they have fewer industry codes.
+- This imbalance limits the contribution of low-granularity sectors.
+- To correct for this, correlations will be averaged over sectors when comparing 
+different questions to the main index.
+
+Formula to calculate balanced mean/median:
+```{r Balanced mean/median, message=FALSE}
+# Median
+compute_balanced_median <- function(df){
+  df %>%
+  summarise(sector_median = median(corr, na.rm = TRUE), 
+            .by = c(lag, indicator, sector)) %>%
+  summarise(median_corr  = mean(sector_median,  na.rm = TRUE), 
+            .by = c(lag, indicator))
+}
+
+# Mean
+compute_balanced_median <- function(df){
+  df %>%
+  summarise(sector_mean = mean(corr, na.rm = TRUE), 
+            .by = c(lag, indicator, sector)) %>%
+  summarise(mean_corr  = mean(sector_mean,  na.rm = TRUE), 
+            .by = c(lag, indicator))
+}
+```
+
+
+**Level Restriction**
+Plot Industrie codes per Level
+```{r Industries per Level}
+
+```
+
+- Few Industries in levels 4 and 5
+- Only Industries from few sectors
+- Analysis should be split between Level 1-3 and 4-5 
+
+#### Residual Scoring
+- Goal: Develop Score that allows to compare correlation of different industries
+between questions and time windows
+- Challenge is that some questions and time windows are less correlated across
+all indices
+- Score should give information about relative correlation across all questions
+and time windows -> allow ranking
+- Main Problem with conventional ranking is that it doesn't take into account 
+the jumps in correlation between ranks
+
+- Proposed score based on residual of (peak) correlation to industry code with 
+highest (peak) correlation  in each question + window
+- Square residual to work for both distance correlation and normal correlation
+- For each Industry code mean squared residual across all questions and windows
+- Squared Residual and mean across questions and windows both penalize outliers
+thereby creating a robust ranking that covers all observations 
+
+### Full Window Analysis
+
+**General Overview**
+Plot: CCF and Dcor
+```{r CCF and DCor, echo=FALSE, warning=FALSE}
+# Filter ccf Results
+heatmap_data <- ccf_tbl_full %>%
+  filter(difference==0,
+         level > 0) %>%
+  compute_balanced_median
+
+# Identify max correlation per indicator
+highlight_points <- heatmap_data %>%
+  group_by(indicator) %>%
+  slice_max(abs(median_corr), n = 1, with_ties = FALSE) %>%  # absolute value now
+  ungroup()
+
+# Plot ccf Results with yellow borders on peak correlation
+ggplot(heatmap_data, aes(x = lag, y = indicator, fill = median_corr)) +
+  geom_tile() +
+  geom_tile(data = highlight_points,
+            color = "yellow", size = 1.2, fill = NA) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = "Average Cross-Correlation per Lag and Indicator (Peak highlighted)",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+
+
+# Dcor Overview
+heatmap_data <- dcor_tbl_full %>%
+  filter(difference==0,
+         level > 0) %>%
+  group_by(lag, indicator) %>%
+  summarise(median_corr = median(corr, na.rm = TRUE), .groups = "drop")
+
+
+# Identify max correlation per indicator
+highlight_points <- heatmap_data %>%
+  group_by(indicator) %>%
+  slice_max(abs(median_corr), n = 1, with_ties = FALSE) %>%  # absolute value now
+  ungroup()
+
+# Plot dcor Results with yellow borders on peak correlation
+ggplot(heatmap_data, aes(x = lag, y = indicator, fill = median_corr)) +
+  geom_tile() +
+  geom_tile(data = highlight_points,
+            color = "yellow", size = 1.2, fill = NA) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = "Average Cross-Correlation per Lag and Indicator (Peak highlighted)",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+```
+- 
+- CCF and the Dcor analysis show similar picture of correlation 
+
+**Correlation Distribution by Question**
+Plot: Correlation Distribution by Question
+```{r Distribution by Indicator, warning=FALSE, echo=FALSE}
+dcor_tbl_full %>% 
+  filter(level %in% c(1:3), 
+         difference == 0,
+         lag %in% c(-6:-1)) %>%
+  group_by(indicator, industry_code, sector) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>% 
+  # group_by(sector, indicator) %>%
+  # summarise(mean_corr = mean(mean_corr), .groups = "drop") %>%
+  ggplot(aes(x = indicator, y = mean_corr)) +
+  # facet_wrap(~ indicator) +
+  geom_boxplot(outlier.size = 1, outlier.colour = "red") +
+  theme_minimal() +
+  labs(
+    title = "Average Distance Correlation distribution by Question",
+    x = "Indicator (Question)",
+    y = "Correlation"
+  )
+
+dcor_tbl_full_peak %>% 
+  filter(level %in% c(1:3), 
+         difference == 0,
+         peak_lag %in% c(-6:6)) %>%
+  ggplot(aes(x = indicator, y = corr)) +
+  # facet_wrap(~ indicator) +
+  geom_boxplot(outlier.size = 1, outlier.colour = "red") +
+  theme_minimal() +
+  labs(
+    title = "Peak Distance Correlation distribution by Question",
+    x = "Indicator (Question)",
+    y = "Correlation"
+  )
+```
+
+**Correlation Distribution by Sectors**
+
+**Correlation Distribution by Levels**
+Plot: Distribution over Levels
+```{r Distribution over Level, warning=FALSE, echo=FALSE}
+dcor_tbl_full %>% 
+  filter(level > 0, 
+         difference == 0,
+         lag %in% c(-6:6)) %>%
+  group_by(level, industry_code) %>%
+  summarise(mean_corr = mean(dcor, na.rm = TRUE), .groups = "drop") %>% 
+  ggplot(aes(x = factor(level), y = mean_corr)) +
+  # facet_wrap(~ indicator) +
+  geom_boxplot(outlier.size = 1, outlier.colour = "red") +
+  theme_minimal() +
+  labs(
+    title = "Average Distance Correlation distribution by Level",
+    x = "Level",
+    y = "Correlation"
+  )
+
+
+dcor_tbl_full_peak %>% 
+  filter(level > 0, 
+         difference == 0) %>%
+  group_by(level, sector) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(x = factor(level), y = mean_corr)) +
+  # facet_wrap(~ indicator) +
+  geom_boxplot(outlier.size = 1, outlier.colour = "red") +
+  theme_minimal() +
+  labs(
+    title = "Average Distance Correlation distribution by Level",
+    x = "Level",
+    y = "Correlation"
+  )
+  
+```
+- Interesting Distribution for Level 4 and 5
+- High Median Correlation Suggests that they might be a valid subset for fast
+predictions/analysis, since based on fewer industry codes
+- further qualitative analysis might be interesting
+
+### Development over time
+
+**General Overview**
+Plot:  CCF Rolling Window
+```{r CCF Rolling Window}
+# Filter ccf Results
+heatmap_data <- ccf_tbl_roll %>%
+  filter(difference==0,
+         level %in% c(1:3)) %>% 
+  group_by(indicator, lag, date_window_end) %>%
+  summarise(mean_corr = mean(correlation, na.rm = TRUE), .groups = "drop")
+
+# Plot ccf Results
+ggplot(heatmap_data, aes(y = lag, x = date_window_end, fill = mean_corr)) +
+  geom_tile() +
+  facet_wrap(~indicator) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = "Average Cross-Correlation per Lag and Indicator (Peak highlighted)",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+```
+
+- Plot doesnt allow for qualitative analysis but already hints at certain patterns
+- 
+
+```{r CCF Rolling Window + Peak}
+# Filter ccf Results
+heatmap_data <- ccf_tbl_roll %>%
+  filter(difference==0,
+         level %in% c(1:3),
+         lag %in% c(-6:6)) %>%
+  group_by(indicator, lag, date_window_end) %>%
+  summarise(mean_corr = mean(correlation, na.rm = TRUE), .groups = "drop")
+
+# Identify max correlation per indicator
+highlight_points <- heatmap_data %>%
+  group_by(indicator, date_window_end) %>%
+  slice_max(abs(mean_corr), n = 1, with_ties = FALSE) %>%  # absolute value now
+  ungroup()
+
+# Plot ccf Results with yellow borders on peak correlation
+ggplot(heatmap_data, aes(y = lag, x = date_window_end, fill = mean_corr)) +
+  geom_tile() +
+  facet_wrap(~indicator) +
+  geom_tile(data = highlight_points,
+            color = "yellow", size = 1.2, fill = NA) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = "Average Cross-Correlation per Lag and Indicator (Peak highlighted)",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+```
+
+- KLD Series Peak Correlation stays the same over time, 
+- Other questions show at least small changes in the lag of the Peak Correlation 
+over time. 
+
+
+**Correlation Distribution by Question**
+
+```{r Distribiton by Indicator, warning=FALSE, echo=FALSE}
+dcor_tbl_roll %>% 
+  filter(level %in% c(1:3), 
+         difference == 0,
+         lag %in% c(-6:6)) %>%
+  group_by(indicator, industry_code, date_window_end) %>%
+  summarise(mean_corr = mean(dcor, na.rm = TRUE), .groups = "drop") %>%
+  group_by(indicator, date_window_end) %>%
+  summarise(median_corr = median(mean_corr),
+            q10 = quantile(mean_corr, 0.10),
+            q25 = quantile(mean_corr, 0.25),
+            q75 = quantile(mean_corr, 0.75),
+            q90 = quantile(mean_corr, 0.90),
+            .groups =  "drop") %>%
+  ggplot(aes(x = date_window_end)) +
+  facet_wrap(~ indicator) +
+  geom_ribbon(aes(ymin = q10, ymax = q90), fill = "grey90") +
+  geom_ribbon(aes(ymin = q25, ymax = q75), fill = "grey60") +
+  geom_line(aes(y = median_corr), color = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  labs(
+    title = "Development of Correlation distribution by Question",
+    x = "Date Window End",
+    y = "Distance Correlation"
+  )
+
+dcor_tbl_roll_peak %>% 
+  filter(level %in% c(1:3), 
+         difference == 0,
+         peak_lag %in% c(-6:6)) %>%
+  group_by(indicator, industry_code, date_window_end) %>%
+  summarise(mean_corr = mean(peak_dcor, na.rm = TRUE), .groups = "drop") %>%
+  group_by(indicator, date_window_end) %>%
+  summarise(median_corr = median(mean_corr),
+            q10 = quantile(mean_corr, 0.10),
+            q25 = quantile(mean_corr, 0.25),
+            q75 = quantile(mean_corr, 0.75),
+            q90 = quantile(mean_corr, 0.90),
+            .groups =  "drop") %>%
+  ggplot(aes(x = date_window_end)) +
+  facet_wrap(~ indicator) +
+  geom_ribbon(aes(ymin = q10, ymax = q90), fill = "grey90") +
+  geom_ribbon(aes(ymin = q25, ymax = q75), fill = "grey60") +
+  geom_line(aes(y = median_corr), color = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  labs(
+    title = "Development of Correlation distribution by Question",
+    x = "Date Window End",
+    y = "Distance Correlation"
+  )
+```
+
+- Based on the quantile bands a subset of industry codes with higher correlation 
+across all questions and the time domain very likely
+
+**Correlation Distribution by Sectors**
+
+**Correlation Distribution by Levels**
+
+
+
+
+### Consitency of Correlation Structure 
+
+- Detect variability within Data by analyzing consistency of ranking.
+- Analyze the ranking of indices by correlation and its stability across 
+indicators, levels and time
+- Stability is quantified using the Jaccard consensus of the top-k ranked 
+industry codes.
+
+**Full Window Analysis**
+Plot: Consensus and Overlap for Full Window Analysis
+```{r Consensus and Overlap (Full), warning=FALSE, echo=FALSE}
+# Extract Ranking for our dcor values
+dcor_tbl_full_rank <- dcor_tbl_full_peak %>%
+  filter(level %in% c(1:3),
+         difference == 0) %>%
+  group_by(indicator) %>%
+  mutate(rank = rank(-corr, ties.method = "min")) %>%
+  arrange(indicator, rank) %>%
+  ungroup()
+
+k_vec <- c(1, seq.int(10,130,10))
+
+# Calculate Jaccard Consenus between Indicators
+jac_curve <- dcor_tbl_full_rank %>%
+  compute_topk_jaccard(k_vec) %>%
+  rename(value = mean_jacc) %>%
+  mutate(metric = "Mean Jaccard")
+
+# Calculate overlap between Indicatos
+overlap_curve <- dcor_tbl_full_rank %>%
+  compute_topk_overlap(k_vec) %>%
+  rename(value = overlap) %>%
+  mutate(metric = "Union size")
+
+plot_data <- jac_curve %>%
+  bind_rows(overlap_curve)
+
+ggplot(plot_data, aes(x = k, y = value, color = metric)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~metric, scales = "free_y") +
+  theme_minimal() +
+  labs(title = "Consensus & Overlap across top-k sets",
+       x = "k (top industries)",
+       y = NULL)
+```
+
+- Size of the union grows fast in the beginning and after *k = 50*
+- For *k < 30* the consensus drops fast -> indicates that the composition of 
+the rankings start to differ quite drastically at least for some indicator pairs 
+- For *k* betwenn 30 and 50 we achieve a decent consensus, while still keeping 
+a relatively small union size. 
+- *k = 30* gives small enough set size to detect changes, but still bigh enough 
+to not be dominated by noise
+
+
+```{r Top 30 Distrution by Indicator, echo=FALSE}
+# Top 30 ranked Industry Codes per question
+top30 <- dcor_tbl_full_rank %>%
+  filter(rank <= 30) %>%
+  pull(industry_code) %>%
+  unique()
+
+# Top 30
+dcor_tbl_full_peak %>% 
+  filter(difference == 0,
+         peak_lag %in% c(-6:6),
+         industry_code %in% top30) %>%
+  ggplot(aes(x = indicator, y = corr)) +
+  # facet_wrap(~ indicator) +
+  geom_boxplot(outlier.size = 1, outlier.colour = "red") +
+  theme_minimal() +
+  labs(
+    title = "Top 30 - Peak Distance Correlation distribution by Question",
+    x = "Indicator (Question)",
+    y = "Correlation"
+  )
+```
+
+**Rolling Window Analysis**
+Plot: Consensus and Overlap by Indicator
+```{r Consensus and Overlap (Roll), warning=FALSE, echo=FALSE}
+# Extract Ranking for our dcor values
+dcor_tbl_roll_rank <- dcor_tbl_roll_peak %>%
+  filter(level %in% c(1:3),
+         difference == 0) %>%
+  group_by(indicator, window_id) %>%
+  mutate(rank = rank(-corr, ties.method = "min")) %>%
+  arrange(indicator, window_id, rank) %>%
+  ungroup()
+
+k_vec <- c(1,seq.int(10,130,10))
+
+# Calculate Jaccard Consenus between Windows
+jac_curve <- dcor_tbl_roll_rank %>%
+  group_by(indicator) %>%
+  group_modify(~ compute_topk_jaccard_win(.x, k_vec)) %>%
+  rename(value = mean_jacc) %>%
+  mutate(metric = "Mean Jaccard")
+
+# Calculate overlap between Indicatos
+overlap_curve <- dcor_tbl_roll_rank %>%
+  group_by(indicator) %>%
+  group_modify(~ compute_topk_overlap(.x, k_vec)) %>%
+  rename(value = overlap) %>%
+  mutate(metric = "Union size")
+
+plot_data <- jac_curve %>%
+  bind_rows(overlap_curve)
+
+# Plots
+plot_data %>%
+  filter(metric=="Mean Jaccard") %>%
+  ggplot(aes(x = k, y = value)) +
+  geom_line(color = "#F8766D") +
+  geom_point(color = "#F8766D") +
+  geom_point(
+    data = . %>% filter(k == 30),  # only keep k = 30
+    aes(x = k, y = value),
+    color = "red", size = 2
+  ) +
+  facet_wrap(~indicator) +
+  theme_minimal() +
+  labs(title = "Consensus across top-k sets per Indicator",
+       x = "k (top industries)",
+       y = NULL)
+
+plot_data %>%
+  filter(metric=="Union size") %>%
+  ggplot(aes(x = k, y = value)) +
+  geom_line(color = "#00BFC4") +
+  geom_point(colour = "#00BFC4") +
+  geom_point(
+    data = . %>% filter(k == 30),  # only keep k = 30
+    aes(x = k, y = value),
+    color = "red", size = 2
+  ) +
+  facet_wrap(~indicator) +
+  theme_minimal() +
+  labs(title = "Overlap across top-k sets per Indicator",
+       x = "k (top industries)",
+       y = NULL)
+
+
+```
+
+- For Rolling Analysis *k* = 30 is still a viable cutoff point
+- For some questions *k* = 1 is very good -> same top industry code in many 
+time windows
+
+Plot: Concensus and Overlap over time window for k=30
+```{r Consensus and Overlap by Window, warning=FALSE, echo=FALSE}
+k_vec <- 30
+
+# Calculate Jaccard Consenus between Windows
+jac_curve <- dcor_tbl_roll_rank %>%
+  group_by(date_window_end) %>%
+  group_modify(~ compute_topk_jaccard(.x, k_vec)) %>%
+  rename(value = mean_jacc) %>%
+  mutate(metric = "Mean Jaccard")
+
+# Calculate overlap between Indicatos
+overlap_curve <- dcor_tbl_roll_rank %>%
+  group_by(date_window_end) %>%
+  group_modify(~ compute_topk_overlap(.x, k_vec)) %>%
+  rename(value = overlap) %>%
+  mutate(metric = "Union size")
+
+plot_data <- jac_curve %>%
+  bind_rows(overlap_curve)
+
+ggplot(plot_data, aes(x = date_window_end, y = value, color = metric)) +
+  geom_line() +
+  geom_point(size = 0.5) +
+  facet_wrap(~metric, scales = "free_y") +
+  theme_minimal() +
+  labs(title = "Consensus & Overlap across top-k sets",
+       x = "k (top industries)",
+       y = NULL)
+```
+
+- ....
+
+**Set Size of Top k Industry Codes**
+- Question: "Can Ranking be used to construct suitable predictive sets?"
+Plot: Overall set size for differnt k Values
+```{r}
+# Top 30 ranked Industry Codes per question
+top30_roll <- dcor_tbl_roll_rank %>%
+  filter(rank <= 1) %>%
+  pull(industry_code) %>%
+  unique()
+```
+
+- When using Top k industry codes based on question and time window the overall 
+set size quickly becomes too much
+- 
+- 
+- ...
+
+
+
+================================================================================
+ToDo:
+
+```{r}
+
+top30_ind <- top30 %>% 
+  group_by(industry_code) %>% 
+  count() %>% 
+  filter(n >= 10)
+top30_intersect <- top30 %>% 
+  filter(industry_code %in% top30_ind$industry_code) %>% 
+  group_by(indicator) %>% 
+  count()
+  
+```
+
+
+```{r}
+peak_dcor <- dcor_tbl_roll_peak %>%
+  filter(level %in% c(1:3)) %>%
+  group_by(indicator, date_window_end) %>%
+  slice_max(corr, n = 1, with_ties = FALSE) %>%
+  select(indicator, date_window_end, corr) %>%
+  rename(peak_corr = corr)
+
+
+```
+
+### Identify interesting Subsets
+
+Over all Questions (Peak thing)
+- Set highly correlated
+- Set low correlated
+- Set high variance
+
+
+Best Predictor (-6:-1)
+- Set best predictor 
+
+
+Best early predictor (-6:-4)
+- Set best predictor 
+
+By BB Tunring Points
+- 

@@ -8,3 +8,14 @@ fabletools
 fable
 feasts
 lmtest
+slider
+tseries
+urca
+furrr
+future
+future.apply
+zoo
+dynlm
+RTransferEntropy
+mpmi
+energy

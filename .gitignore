@@ -182,11 +182,19 @@ cython_debug/
 .Ruserdata
 .Rproj.user/
 *.Rproj
+.RDataTmp
 
 # Files
 JakobsTrials/
 Test.R
 
-# Ignore html outputs of Notebooks, as they dont render 
+# Data Folders/Files
+LagAnalysis/temp_data/
+LagAnalysis/results/
+lag_report_files/
+
+
+# Ignore html outputs of Notebooks, as they dont render
+*.html
 *.htmlplots
 plots/*
