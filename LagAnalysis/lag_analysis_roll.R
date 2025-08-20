@@ -177,9 +177,18 @@ ccf_tbl_roll <- ifo_tsbl_roll %>%
 ccf_tbl_roll <- ccf_tbl_roll %>%
   ccf_postprocess()
 
+# Extract peak lead/lag per Industry
+ccf_tbl_roll_peak <- ccf_tbl_roll %>%
+  filter(lag %in% c(-6:6)) %>% 
+  group_by(ID, window_id) %>%
+  slice_max(order_by = abs(correlation), n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  rename(peak_lag = lag, peak_corr = correlation)
+
 # Save Output as temp data file
 write_csv(ccf_tbl_roll, "LagAnalysis/results/ccf_results_roll.csv")
-# ccf_tbl_roll <- read_csv("LagAnalysis/temp_data/ccf_results_roll.csv")
+write_csv(ccf_tbl_roll_peak, "LagAnalysis/results/ccf_results_roll_peak.csv")
+# ccf_tbl_roll <- read_csv("LagAnalysis/results/ccf_results_roll.csv")
 
 # --------------------------------------------------------------------
 # Compute Rolling dCor
@@ -219,6 +228,15 @@ dcor_tbl_roll <- ifo_tsbl_roll %>%
 dcor_tbl_roll <- dcor_tbl_roll %>%
   dcor_postprocess()
 
+# Extract peak lead/lag per Industry
+dcor_tbl_roll_peak <- dcor_tbl_roll %>%
+  filter(lag %in% c(-6:6)) %>%
+  group_by(ID, window_id) %>%
+  slice_max(order_by = abs(dcor), n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  rename(peak_lag = lag, peak_dcor = dcor)
+
 # Save Output as temp data file
 write_csv(dcor_tbl_roll, "LagAnalysis/results/dcor_results_roll.csv")
-# dcor_tbl_roll <- read_csv("LagAnalysis/temp_data/dcor_results_roll.csv")
+write_csv(dcor_tbl_roll_peak, "LagAnalysis/results/dcor_results_roll_peak.csv")
+# dcor_tbl_roll <- read_csv("LagAnalysis/results/dcor_results_roll.csv")

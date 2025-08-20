@@ -115,6 +115,7 @@ ccf_results_full <- ccf_results_full %>%
 
 # Extract peak lead/lag per Industry
 ccf_results_full_peak <- ccf_results_full %>%
+  filter(lag %in% c(-6:6)) %>% 
   group_by(ID) %>%
   slice_max(order_by = abs(correlation), n = 1, with_ties = FALSE) %>%
   ungroup() %>%
@@ -144,11 +145,12 @@ dcor_results_full <- dcor_results_full %>%
 
 # Extract peak lead/lag per Industry
 dcor_results_full_peak <- dcor_results_full %>%
+  filter(lag %in% c(-6:6)) %>% 
   group_by(ID) %>%
   slice_max(order_by = abs(dcor), n = 1, with_ties = FALSE) %>%
   ungroup() %>%
   rename(peak_lag = lag, peak_corr = dcor)
 
 # Save Output as csv file
-write_csv(dcor_results_full, "LagAnalysis/results/ccf_results_full.csv")
-write_csv(dcor_results_full_peak, "LagAnalysis/results/ccf_results_full_peak.csv")
+write_csv(dcor_results_full, "LagAnalysis/results/dcor_results_full.csv")
+write_csv(dcor_results_full_peak, "LagAnalysis/results/dcor_results_full_peak.csv")

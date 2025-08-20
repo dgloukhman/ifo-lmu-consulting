@@ -193,3 +193,119 @@ dcor_postprocess <- function(dcor_results_full) {
     ) %>%
     select(-diff_part)
 }
+
+# --------------------------------------------------------------------
+# Function: compute_topk_jaccard
+# Purpose:
+#   For each k in k_vec, compute the mean pairwise Jaccard similarity
+#   of the top-k ranked industry sets across all indicators.
+# Inputs:
+#   - df    : tibble with columns 'indicator', 'industry_code', 'rank'
+#   - k_vec : integer vector of k values (e.g., 1:50)
+# Output:
+#   - tibble with columns:
+#       k         : the evaluated cutoff
+#       mean_jacc : average pairwise Jaccard across all indicator pairs
+# Notes:
+#   - Ranks must be 1 = best (ties handled by input order after arrange()).
+#   - Top-k sets are derived once per indicator and reused for all k.
+#   - Requires: library(tidyverse)
+# --------------------------------------------------------------------
+compute_topk_jaccard <- function(df, k_vec) {
+  # Precompute ordered items per indicator once
+  top_base <- df %>%
+    arrange(indicator, rank, industry_code) %>%
+    group_by(indicator) %>%
+    summarise(items = list(industry_code), .groups = "drop")
+  
+  ind <- top_base$indicator
+  nind <- length(ind)
+  if (nind < 2) {
+    return(tibble(k = k_vec, mean_jacc = NA_real_))
+  }
+  pairs <- combn(seq_len(nind), 2)
+  
+  # For each k, compute mean pairwise Jaccard on top-k sets
+  tibble(k = k_vec) %>%
+    mutate(mean_jacc = map_dbl(k, function(k_) {
+      jac <- map_dbl(seq_len(ncol(pairs)), function(col) {
+        i <- pairs[1, col]; j <- pairs[2, col]
+        a <- head(top_base$items[[i]], k_)
+        b <- head(top_base$items[[j]], k_)
+        length(intersect(a, b)) / length(union(a, b))
+      })
+      mean(jac)
+    }))
+}
+
+
+# --------------------------------------------------------------------
+# Function: compute_topk_jaccard_roll
+# Purpose:
+#   Similar to compute_topk_jaccard_roll, but comparison over windows.
+#   For each k in k_vec, compute the mean pairwise Jaccard similarity
+#   of the top-k ranked industry sets across all windows.
+# Inputs:
+#   - df    : tibble with columns 'window_id', 'industry_code', 'rank'
+#   - k_vec : integer vector of k values (e.g., 1:50)
+# Output:
+#   - tibble with columns:
+#       k         : the evaluated cutoff
+#       mean_jacc : average pairwise Jaccard across all indicator pairs
+# Notes:
+#   - Ranks must be 1 = best (ties handled by input order after arrange()).
+#   - Top-k sets are derived once per window_id and reused for all k.
+#   - Requires: library(tidyverse)
+# --------------------------------------------------------------------
+compute_topk_jaccard_win <- function(df, k_vec) {
+  # Precompute ordered items per indicator once
+  top_base <- df %>%
+    arrange(window_id, rank, industry_code) %>%
+    group_by(window_id) %>%
+    summarise(items = list(industry_code), .groups = "drop")
+  
+  ind <- top_base$window_id
+  nind <- length(ind)
+  if (nind < 2) {
+    return(tibble(k = k_vec, mean_jacc = NA_real_))
+  }
+  pairs <- combn(seq_len(nind), 2)
+  
+  # For each k, compute mean pairwise Jaccard on top-k sets
+  tibble(k = k_vec) %>%
+    mutate(mean_jacc = map_dbl(k, function(k_) {
+      jac <- map_dbl(seq_len(ncol(pairs)), function(col) {
+        i <- pairs[1, col]; j <- pairs[2, col]
+        a <- head(top_base$items[[i]], k_)
+        b <- head(top_base$items[[j]], k_)
+        length(intersect(a, b)) / length(union(a, b))
+      })
+      mean(jac)
+    }))
+}
+
+# --------------------------------------------------------------------
+# Function: compute_topk_overlap
+# Purpose:
+#   For each k in k_vec, compute the size of the union of the top-k
+#   industry codes across all indicators.
+# Inputs:
+#   - df    : tibble with columns 'indicator', 'industry_code', 'rank'
+#   - k_vec : integer vector of k values (e.g., 1:50)
+# Output:
+#   - tibble with columns:
+#       k       : cutoff
+#       overlap : number of unique industries across all top-k sets
+# Notes:
+#   - Ranks must be 1 = best.
+# --------------------------------------------------------------------
+compute_topk_overlap <- function(df, k_vec) {
+  tibble(k = k_vec) %>%
+    mutate(overlap = map_int(k, function(k_) {
+      df %>%
+        filter(rank <= k_) %>%
+        pull(industry_code) %>%
+        unique() %>%
+        length()
+    }))
+}

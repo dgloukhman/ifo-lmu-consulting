@@ -126,7 +126,9 @@ get_dcor_full <- function(tsbl, main_index, target_code, max_lag = 12) {
   lags <- seq(-max_lag, max_lag)
   
   dcor_vals <- map_dbl(lags, function(k) {
-    x_shifted <- if (k > 0) dplyr::lag(x, n = k) else if (k < 0) dplyr::lead(x, n = -k) else x
+    x_shifted <- if (k < 0) dplyr::lag(x, n = -k) 
+                 else if (k > 0) dplyr::lead(x, n = k) 
+                 else x
     jj <- complete.cases(x_shifted, y)
     if (sum(jj) < 5) return(NA_real_)
     dcor(x_shifted[jj], y[jj])
@@ -159,7 +161,9 @@ get_dcor_pair <- function(x, y, max_lag = 12) {
   lags <- seq(-max_lag, max_lag)
   
   dcor_vals <- map_dbl(lags, function(k) {
-    x_shifted <- if (k > 0) dplyr::lag(x, n = k) else if (k < 0) dplyr::lead(x, n = -k) else x
+    x_shifted <- if (k < 0) dplyr::lag(x, n = -k) 
+                 else if (k > 0) dplyr::lead(x, n = k) 
+                 else x
     jj <- complete.cases(x_shifted, y)
     if (sum(jj) < 5) return(NA_real_)
     dcor(x_shifted[jj], y[jj])
