@@ -61,7 +61,7 @@ between:
 - keep the computational demand within reasonable limits.
 
 
-```{r Data Import, message=FALSE}
+```{r Data Import, include=FALSE}
 # Full Analysis Data
 ccf_tbl_full <- read_csv("LagAnalysis/results/ccf_results_full.csv") %>%
   mutate(sector = str_sub(industry_code, 1, 3)) %>%
@@ -96,6 +96,7 @@ adf_tbl_roll <- read_csv("LagAnalysis/results/adf_results_roll.csv") %>%
 ```
 
 
+
 ### Methods for the Analysis of Correlation Structure
 
 #### Lag Aggregation
@@ -113,6 +114,7 @@ adf_tbl_roll <- read_csv("LagAnalysis/results/adf_results_roll.csv") %>%
   correlation
 
 
+
 #### Dcor vs CCF
 
 To validate the findings the correlation between the individual time series and
@@ -121,6 +123,7 @@ the main index (*C0000000 - KLD*) was analyzed with two different approaches:
 - Cross Correlation using **stats::ccf**
 - Distance Correlation using **energy::dcor**
 
+
 The distance correlation can be seen as an upper bound for the cross correlation 
 function that measures the linear dependence between the different time series. 
 For our analysis the main benefit of the distance correlation is the ability to 
@@ -128,9 +131,11 @@ verify our Cross Correlation Results as well as having a "un-directed" correlati
 measure. 
 
 
+
 #### Industry Aggregation
 
 **Hierarchical Aggreagtion:**
+
 - The hierarchical tree structure in the data creates an inherent imbalance when 
 aggregating industry codes across sectors (2-digit codes).
 - This imbalance arises from the different levels of granularity in how industry
@@ -169,6 +174,7 @@ good, since they have fewer industry codes.
 - To correct for this, correlations will be averaged over sectors when comparing 
 different questions to the main index.
 
+
 Formula to calculate balanced mean/median:
 ```{r Balanced mean/median, message=FALSE}
 # Median
@@ -181,7 +187,7 @@ compute_balanced_median <- function(df){
 }
 
 # Mean
-compute_balanced_median <- function(df){
+compute_balanced_mean <- function(df){
   df %>%
   summarise(sector_mean = mean(corr, na.rm = TRUE), 
             .by = c(lag, indicator, sector)) %>%
@@ -191,7 +197,9 @@ compute_balanced_median <- function(df){
 ```
 
 
+
 **Level Restriction**
+
 Plot Industrie codes per Level
 ```{r Industries per Level}
 ccf_tbl_full %>%
@@ -213,7 +221,9 @@ ccf_tbl_full %>%
 - Only Industries from few sectors
 - Analysis should be split between Level 1-3 and 4-5 
 
+
 #### Residual Scoring
+
 - Goal: Develop Score that allows to compare correlation of different industries
 between questions and time windows
 - Challenge is that some questions and time windows are less correlated across
@@ -229,10 +239,14 @@ highest (peak) correlation  in each question + window
 - For each Industry code mean squared residual across all questions and windows
 - Squared Residual and mean across questions and windows both penalize outliers
 thereby creating a robust ranking that covers all observations 
+- Score = 1 - (residual)^2
+
+
 
 ### Full Window Analysis
 
 **General Overview**
+
 Plot: CCF and Dcor
 ```{r CCF and DCor, echo=FALSE, warning=FALSE}
 # Filter ccf Results
@@ -290,10 +304,12 @@ ggplot(heatmap_data, aes(x = lag, y = indicator, fill = median_corr)) +
        y = "Indicator",
        fill = "Mean Corr")
 ```
-- 
+
 - CCF and the Dcor analysis show similar picture of correlation 
 
+
 **Correlation Distribution by Question**
+
 Plot: Correlation Distribution by Question
 ```{r Distribution by Indicator, warning=FALSE, echo=FALSE}
 dcor_tbl_full %>% 
@@ -307,6 +323,7 @@ dcor_tbl_full %>%
   ggplot(aes(x = indicator, y = mean_corr)) +
   # facet_wrap(~ indicator) +
   geom_boxplot(outlier.size = 1, outlier.colour = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
   theme_minimal() +
   labs(
     title = "Average Distance Correlation distribution by Question",
@@ -321,6 +338,7 @@ dcor_tbl_full_peak %>%
   ggplot(aes(x = indicator, y = corr)) +
   # facet_wrap(~ indicator) +
   geom_boxplot(outlier.size = 1, outlier.colour = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
   theme_minimal() +
   labs(
     title = "Peak Distance Correlation distribution by Question",
@@ -329,20 +347,21 @@ dcor_tbl_full_peak %>%
   )
 ```
 
+
 **Correlation Distribution by Sectors**
 
-**Correlation Distribution by Levels**
-Plot: Distribution over Levels
-```{r Distribution over Level, warning=FALSE, echo=FALSE}
+Plot: Distribution by Sectors
+```{r Distribution by Sector, warning=FALSE, echo=FALSE}
 dcor_tbl_full %>% 
   filter(level > 0, 
          difference == 0,
          lag %in% c(-6:6)) %>%
-  group_by(level, industry_code) %>%
-  summarise(mean_corr = mean(dcor, na.rm = TRUE), .groups = "drop") %>% 
-  ggplot(aes(x = factor(level), y = mean_corr)) +
+  group_by(level, sector) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(x = factor(sector), y = mean_corr)) +
   # facet_wrap(~ indicator) +
   geom_boxplot(outlier.size = 1, outlier.colour = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
   theme_minimal() +
   labs(
     title = "Average Distance Correlation distribution by Level",
@@ -359,22 +378,66 @@ dcor_tbl_full_peak %>%
   ggplot(aes(x = factor(level), y = mean_corr)) +
   # facet_wrap(~ indicator) +
   geom_boxplot(outlier.size = 1, outlier.colour = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  labs(
+    title = "Average Peak Distance Correlation distribution by Level",
+    x = "Level",
+    y = "Correlation"
+  )
+  
+```
+
+
+
+**Correlation Distribution by Levels**
+
+Plot: Distribution over Levels
+```{r Distribution over Level, warning=FALSE, echo=FALSE}
+dcor_tbl_full %>% 
+  filter(level > 0, 
+         difference == 0,
+         lag %in% c(-6:6)) %>%
+  group_by(sector, industry_code, indicator) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(x = sector, y = mean_corr)) +
+  # facet_wrap(~ indicator) +
+  geom_boxplot(outlier.size = 1, outlier.colour = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
   theme_minimal() +
   labs(
     title = "Average Distance Correlation distribution by Level",
     x = "Level",
     y = "Correlation"
   )
+
+
+dcor_tbl_full_peak %>% 
+  filter(level > 0, 
+         difference == 0) %>%
+  ggplot(aes(x = sector, y = corr)) +
+  # facet_wrap(~ indicator) +
+  geom_boxplot(outlier.size = 1, outlier.colour = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  labs(
+    title = "Average Peak Distance Correlation distribution by Level",
+    x = "Level",
+    y = "Correlation"
+  )
   
 ```
+
 - Interesting Distribution for Level 4 and 5
 - High Median Correlation Suggests that they might be a valid subset for fast
 predictions/analysis, since based on fewer industry codes
 - further qualitative analysis might be interesting
 
+
 ### Development over time
 
 **General Overview**
+
 Plot:  CCF Rolling Window
 ```{r CCF Rolling Window}
 # Filter ccf Results
@@ -382,7 +445,7 @@ heatmap_data <- ccf_tbl_roll %>%
   filter(difference==0,
          level %in% c(1:3)) %>% 
   group_by(indicator, lag, date_window_end) %>%
-  summarise(mean_corr = mean(correlation, na.rm = TRUE), .groups = "drop")
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop")
 
 # Plot ccf Results
 ggplot(heatmap_data, aes(y = lag, x = date_window_end, fill = mean_corr)) +
@@ -408,7 +471,7 @@ heatmap_data <- ccf_tbl_roll %>%
          level %in% c(1:3),
          lag %in% c(-6:6)) %>%
   group_by(indicator, lag, date_window_end) %>%
-  summarise(mean_corr = mean(correlation, na.rm = TRUE), .groups = "drop")
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop")
 
 # Identify max correlation per indicator
 highlight_points <- heatmap_data %>%
@@ -445,7 +508,7 @@ dcor_tbl_roll %>%
          difference == 0,
          lag %in% c(-6:6)) %>%
   group_by(indicator, industry_code, date_window_end) %>%
-  summarise(mean_corr = mean(dcor, na.rm = TRUE), .groups = "drop") %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
   group_by(indicator, date_window_end) %>%
   summarise(median_corr = median(mean_corr),
             q10 = quantile(mean_corr, 0.10),
@@ -471,7 +534,7 @@ dcor_tbl_roll_peak %>%
          difference == 0,
          peak_lag %in% c(-6:6)) %>%
   group_by(indicator, industry_code, date_window_end) %>%
-  summarise(mean_corr = mean(peak_dcor, na.rm = TRUE), .groups = "drop") %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
   group_by(indicator, date_window_end) %>%
   summarise(median_corr = median(mean_corr),
             q10 = quantile(mean_corr, 0.10),
@@ -487,7 +550,7 @@ dcor_tbl_roll_peak %>%
   scale_y_continuous(limits = c(0, 1)) +
   theme_minimal() +
   labs(
-    title = "Development of Correlation distribution by Question",
+    title = "Development of Peak Correlation distribution by Question",
     x = "Date Window End",
     y = "Distance Correlation"
   )
@@ -496,11 +559,65 @@ dcor_tbl_roll_peak %>%
 - Based on the quantile bands a subset of industry codes with higher correlation 
 across all questions and the time domain very likely
 
+
 **Correlation Distribution by Sectors**
+
 
 **Correlation Distribution by Levels**
 
+```{r Distribiton by Levels, warning=FALSE, echo=FALSE}
+dcor_tbl_roll %>% 
+  filter(level > 0, 
+         difference == 0,
+         lag %in% c(-6:6)) %>%
+  group_by(level, indicator, industry_code, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  group_by(level, date_window_end) %>%
+  summarise(median_corr = median(mean_corr),
+            q10 = quantile(mean_corr, 0.10),
+            q25 = quantile(mean_corr, 0.25),
+            q75 = quantile(mean_corr, 0.75),
+            q90 = quantile(mean_corr, 0.90),
+            .groups =  "drop") %>%
+  ggplot(aes(x = date_window_end)) +
+  facet_wrap(~ level) +
+  geom_ribbon(aes(ymin = q10, ymax = q90), fill = "grey90") +
+  geom_ribbon(aes(ymin = q25, ymax = q75), fill = "grey60") +
+  geom_line(aes(y = median_corr), color = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  labs(
+    title = "Development of Correlation distribution by Level",
+    x = "Date Window End",
+    y = "Distance Correlation"
+  )
 
+dcor_tbl_roll_peak %>% 
+  filter(level > 0, 
+         difference == 0,
+         peak_lag %in% c(-6:6)) %>%
+  group_by(level, indicator, industry_code, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  group_by(level, date_window_end) %>%
+  summarise(median_corr = median(mean_corr),
+            q10 = quantile(mean_corr, 0.10),
+            q25 = quantile(mean_corr, 0.25),
+            q75 = quantile(mean_corr, 0.75),
+            q90 = quantile(mean_corr, 0.90),
+            .groups =  "drop") %>%
+  ggplot(aes(x = date_window_end)) +
+  facet_wrap(~ level) +
+  geom_ribbon(aes(ymin = q10, ymax = q90), fill = "grey90") +
+  geom_ribbon(aes(ymin = q25, ymax = q75), fill = "grey60") +
+  geom_line(aes(y = median_corr), color = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  labs(
+    title = "Development of Peak Correlation distribution by Level",
+    x = "Date Window End",
+    y = "Distance Correlation"
+  )
+```
 
 
 ### Consitency of Correlation Structure 
@@ -510,6 +627,7 @@ across all questions and the time domain very likely
 indicators, levels and time
 - Stability is quantified using the Jaccard consensus of the top-k ranked 
 industry codes.
+
 
 **Full Window Analysis**
 Plot: Consensus and Overlap for Full Window Analysis
@@ -582,6 +700,7 @@ dcor_tbl_full_peak %>%
   )
 ```
 
+
 **Rolling Window Analysis**
 Plot: Consensus and Overlap by Indicator
 ```{r Consensus and Overlap (Roll), warning=FALSE, echo=FALSE}
@@ -653,6 +772,7 @@ plot_data %>%
 - For some questions *k* = 1 is very good -> same top industry code in many 
 time windows
 
+
 Plot: Concensus and Overlap over time window for k=30
 ```{r Consensus and Overlap by Window, warning=FALSE, echo=FALSE}
 k_vec <- 30
@@ -686,10 +806,11 @@ ggplot(plot_data, aes(x = date_window_end, y = value, color = metric)) +
 
 - ....
 
+
 **Set Size of Top k Industry Codes**
 - Question: "Can Ranking be used to construct suitable predictive sets?"
 Plot: Overall set size for differnt k Values
-```{r}
+```{r Top k Set Size}
 # Top 30 ranked Industry Codes per question
 k_vec <- c(1,seq.int(10,130,10))
 
@@ -713,48 +834,708 @@ uniq_by_k %>%
 and time window at least once
 - When using Top k industry codes based on question and time window the overall 
 set size quickly becomes too much to be a small subset
-
-- 
 - ...
 
 
+### Score based analysis of Peak Correlation Structure 
 
-================================================================================
-ToDo:
-
-```{r}
-
-top30_ind <- top30 %>% 
-  group_by(industry_code) %>% 
-  count() %>% 
-  filter(n >= 10)
-top30_intersect <- top30 %>% 
-  filter(industry_code %in% top30_ind$industry_code) %>% 
-  group_by(indicator) %>% 
-  count()
-  
-```
+- Goal: score industry codes based on their correlation accross all time windows
+and questions
+- Analysis based on the peak correlation of each indicator for lags between -6 
+and 6 months
+- Identify interesting sets of industry codes based on their peak correlation 
+structure
 
 
-```{r}
+### Score Calculation
+
+**Residual Calculation**
+Table: Residuals
+```{r Residual Calculation}
 peak_dcor <- dcor_tbl_roll_peak %>%
-  filter(level %in% c(1:3)) %>%
+  filter(level > 0,
+         difference==0) %>%
   group_by(indicator, date_window_end) %>%
   slice_max(corr, n = 1, with_ties = FALSE) %>%
   select(indicator, date_window_end, corr) %>%
   rename(peak_corr = corr)
 
+res_dcor <- dcor_tbl_roll_peak %>%
+  filter(level > 0,
+         difference==0) %>%
+  left_join(peak_dcor, by = join_by(indicator, date_window_end)) %>%
+  mutate(res_corr = 2*(peak_corr-corr)^2)
+
+res_dcor %>% 
+  select(industry_code, indicator, window_id,  corr, peak_corr, res_corr) %>%
+  head()
+```
+
+- First step is residual Calculation
+- Residuals are calculated per indicator and time window
+- Residuals are squared difference between peak correlation of a industry code and
+the peak correlation of all industry codes in a given time window + indicator
+
+
+**Score Calculation and Distribution**
+Figure: Distribution of Score and Variance per Sector
+```{r Score calculation & distribution}
+score_tbl_roll <- res_dcor %>%
+  group_by(industry_code, level, sector) %>%
+  summarise(score = 1-mean(res_corr),
+            var = var(res_corr),
+            .groups = "drop") %>%
+  arrange(desc(score))
+
+score_tbl_roll %>% 
+  ggplot(aes(x = sector, y = score)) +
+  geom_boxplot(outlier.size = 1, outlier.colour = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  labs(
+    title = "Score by Peak Correlation",
+    x = "Sector",
+    y = "Score"
+  )
+
+score_tbl_roll %>% 
+  ggplot(aes(x = sector, y = var)) +
+  geom_boxplot(outlier.size = 1, outlier.colour = "red") +
+  theme_minimal() +
+  labs(
+    title = "Variance of Score by Peak Correlation",
+    x = "Sector",
+    y = "Variance"
+  )
+
+score_tbl_roll %>% 
+  ggplot(aes(x = factor(level), y = score)) +
+  geom_boxplot(outlier.size = 1, outlier.colour = "red") +
+  theme_minimal() +
+  labs(
+    title = "Score by Peak Correlation",
+    x = "Sector",
+    y = "Variance"
+  )
 
 ```
 
+- Score is defined as 1-residual, since residual is between 0 and 1 and lower 
+values are better
+- Plots show score and variance of score vary widely across different sectors
+- Some Sectors like C24 have overall very good scores with low variance
+- For most Sectors both score and variance heavily influenced by outliers
+
+
+**Top-k Set Performance**
+Plot: Avg. and minimum score of Top-k industries (ranked by score)
+```{r}
+score_tbl_roll %>%                       # your 5‑col table
+  arrange(desc(score)) %>%
+  mutate(k = row_number(),
+         avg_topk = cummean(score),
+         min_topk = cummin(score)) %>%
+  ggplot(aes(x = k)) +
+  geom_line(aes(y = min_topk), color = "#F8766D") +
+  geom_point(aes(y = min_topk), color = "#F8766D", size = 0.25) +
+  geom_line(aes(y = avg_topk), color = "#00BFC4") +
+  geom_point(aes(y = avg_topk), color = "#00BFC4", size = 0.75) +
+  theme_minimal() +
+  labs(title = "Average and minimum score of top k set",
+       x = "k (top k by score)", y = "Avg(score) among top k")
+```
+
+- Plot shows the avg. and minimum scores of the Top-k sets
+- After the set of top 25 industries the avg and minimum score drop a lot faster
+- The bottom 25 industries have significant lower score values
+- Based on plot 5, and 25 are good set sizes for further analysis both of 
+top and bottom industries
+
+
+#### Set Analysis
+
+- Identification of interesting sets for further research
+- Focus on points of view
+  - Sets that capture the full picture well
+  - Sets that allows for early predictions
+  - Level 4 and 5
+
+##### Full Picture Analysis
+
+**Highly Correlated Industries**
+Plot: Top 5
+```{r}
+# Top Industries
+top05_peak <- score_tbl_roll %>%
+  filter(level %in% c(1:3)) %>%
+  slice_max(score, n=5, with_ties = FALSE) %>%
+  pull(industry_code)
+
+#Plot CCF Full Window
+heatmap_data <- ccf_tbl_full %>%
+  filter(industry_code %in% top05_peak,
+         difference==0) %>%
+  group_by(indicator, lag) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop")
+  
+highlight_points <- heatmap_data %>%
+  group_by(indicator) %>%
+  slice_max(abs(mean_corr), n = 1, with_ties = FALSE) %>%  # absolute value now
+  ungroup()
+
+ggplot(heatmap_data, aes(x = lag, y = indicator, fill = mean_corr)) +
+  geom_tile() +
+  geom_tile(data = highlight_points,
+            color = "yellow", size = 1.2, fill = NA) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = "Top 5 - Avg. Cross-Correlation per Lag and Indicator (Peak highlighted)",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+
+
+# Plot ccf Results Roll
+ccf_tbl_roll %>%
+  filter(industry_code %in% top05_peak,
+         difference==0) %>%
+  group_by(indicator, lag, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(y = lag, x = date_window_end, fill = mean_corr)) +
+  geom_tile() +
+  facet_wrap(~indicator) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = " Top 5 - Avg. Cross-Correlation per Lag and Indicator (Peak highlighted)",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+
+# Plot Distribution by Question
+dcor_tbl_roll_peak %>% 
+  filter(industry_code %in% top05_peak, 
+         difference == 0,
+         peak_lag %in% c(-6:6)) %>%
+  group_by(indicator, industry_code, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  group_by(indicator, date_window_end) %>%
+  summarise(median_corr = median(mean_corr),
+            q10 = quantile(mean_corr, 0.10),
+            q25 = quantile(mean_corr, 0.25),
+            q75 = quantile(mean_corr, 0.75),
+            q90 = quantile(mean_corr, 0.90),
+            .groups =  "drop") %>%
+  ggplot(aes(x = date_window_end)) +
+  facet_wrap(~ indicator) +
+  geom_ribbon(aes(ymin = q10, ymax = q90), fill = "grey90") +
+  geom_ribbon(aes(ymin = q25, ymax = q75), fill = "grey60") +
+  geom_line(aes(y = median_corr), color = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  labs(
+    title = " Top 5 - Development of Peak Correlation distribution by Question",
+    x = "Date Window End",
+    y = "Distance Correlation"
+  )
+```
+
+
+Plot: Top 25
+```{r Top 25 Peak}
+# Top Industries
+top25_peak <- score_tbl_roll %>%
+  filter(level %in% c(1:3)) %>%
+  slice_max(score, n=25, with_ties = FALSE) %>%
+  pull(industry_code)
+
+#Plot CCF Full Window
+heatmap_data <- ccf_tbl_full %>%
+  filter(industry_code %in% top25_peak,
+         difference==0) %>%
+  group_by(indicator, lag) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop")
+  
+highlight_points <- heatmap_data %>%
+  group_by(indicator) %>%
+  slice_max(abs(mean_corr), n = 1, with_ties = FALSE) %>%  # absolute value now
+  ungroup()
+
+ggplot(heatmap_data, aes(x = lag, y = indicator, fill = mean_corr)) +
+  geom_tile() +
+  geom_tile(data = highlight_points,
+            color = "yellow", size = 1.2, fill = NA) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = "Top 25 - Avg. Cross-Correlation per Lag and Indicator (Peak highlighted)",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+
+
+# Plot ccf Results Roll
+ccf_tbl_roll %>%
+  filter(industry_code %in% top25_peak,
+         difference==0) %>%
+  group_by(indicator, lag, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(y = lag, x = date_window_end, fill = mean_corr)) +
+  geom_tile() +
+  facet_wrap(~indicator) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = " Top 25 - Avg. Cross-Correlation per Lag and Indicator (Peak highlighted)",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+
+# Plot Distribution by Question
+dcor_tbl_roll_peak %>% 
+  filter(industry_code %in% top25_peak, 
+         difference == 0,
+         peak_lag %in% c(-6:6)) %>%
+  group_by(indicator, industry_code, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  group_by(indicator, date_window_end) %>%
+  summarise(median_corr = median(mean_corr),
+            q10 = quantile(mean_corr, 0.10),
+            q25 = quantile(mean_corr, 0.25),
+            q75 = quantile(mean_corr, 0.75),
+            q90 = quantile(mean_corr, 0.90),
+            .groups =  "drop") %>%
+  ggplot(aes(x = date_window_end)) +
+  facet_wrap(~ indicator) +
+  geom_ribbon(aes(ymin = q10, ymax = q90), fill = "grey90") +
+  geom_ribbon(aes(ymin = q25, ymax = q75), fill = "grey60") +
+  geom_line(aes(y = median_corr), color = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  labs(
+    title = " Top 25 - Development of Peak Correlation distribution by Question",
+    x = "Date Window End",
+    y = "Distance Correlation"
+  )
+```
+
+
+**Low Correlated Industries**
+Plot: Low 5
+```{r Low 5 Peak}
+# Top Industries
+low05_peak <- score_tbl_roll %>%
+  filter(level %in% c(1:3)) %>%
+  slice_min(score, n=5, with_ties = FALSE) %>%
+  pull(industry_code)
+
+#Plot CCF Full Window
+heatmap_data <- ccf_tbl_full %>%
+  filter(industry_code %in% top05_peak,
+         difference==0) %>%
+  group_by(indicator, lag) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop")
+  
+highlight_points <- heatmap_data %>%
+  group_by(indicator) %>%
+  slice_max(abs(mean_corr), n = 1, with_ties = FALSE) %>%  # absolute value now
+  ungroup()
+
+ggplot(heatmap_data, aes(x = lag, y = indicator, fill = mean_corr)) +
+  geom_tile() +
+  geom_tile(data = highlight_points,
+            color = "yellow", size = 1.2, fill = NA) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = "Bottom 5 - Avg. Cross-Correlation per Lag and Indicator (Peak highlighted)",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+
+
+# Plot ccf Results Roll
+ccf_tbl_roll %>%
+  filter(industry_code %in% top05_peak,
+         difference==0) %>%
+  group_by(indicator, lag, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(y = lag, x = date_window_end, fill = mean_corr)) +
+  geom_tile() +
+  facet_wrap(~indicator) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = " Bottom 5 - Avg. Cross-Correlation per Lag and Indicator (Peak highlighted)",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+
+# Plot Distribution by Question
+dcor_tbl_roll_peak %>% 
+  filter(industry_code %in% top05_peak, 
+         difference == 0,
+         peak_lag %in% c(-6:6)) %>%
+  group_by(indicator, industry_code, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  group_by(indicator, date_window_end) %>%
+  summarise(median_corr = median(mean_corr),
+            q10 = quantile(mean_corr, 0.10),
+            q25 = quantile(mean_corr, 0.25),
+            q75 = quantile(mean_corr, 0.75),
+            q90 = quantile(mean_corr, 0.90),
+            .groups =  "drop") %>%
+  ggplot(aes(x = date_window_end)) +
+  facet_wrap(~ indicator) +
+  geom_ribbon(aes(ymin = q10, ymax = q90), fill = "grey90") +
+  geom_ribbon(aes(ymin = q25, ymax = q75), fill = "grey60") +
+  geom_line(aes(y = median_corr), color = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  labs(
+    title = " Bottom 5 - Development of Peak Correlation distribution by Question",
+    x = "Date Window End",
+    y = "Distance Correlation"
+  )
+```
+
+
+Plot: Low 25
+```{r Low 25 Peak}
+# Top Industries
+low25_peak <- score_tbl_roll %>%
+  filter(level %in% c(1:3)) %>%
+  slice_min(score, n=25, with_ties = FALSE) %>%
+  pull(industry_code)
+
+#Plot CCF Full Window
+heatmap_data <- ccf_tbl_full %>%
+  filter(industry_code %in% top25_peak,
+         difference==0) %>%
+  group_by(indicator, lag) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop")
+  
+highlight_points <- heatmap_data %>%
+  group_by(indicator) %>%
+  slice_max(abs(mean_corr), n = 1, with_ties = FALSE) %>%  # absolute value now
+  ungroup()
+
+ggplot(heatmap_data, aes(x = lag, y = indicator, fill = mean_corr)) +
+  geom_tile() +
+  geom_tile(data = highlight_points,
+            color = "yellow", size = 1.2, fill = NA) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = "Bottom 25 - Avg. Cross-Correlation per Lag and Indicator (Peak highlighted)",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+
+
+# Plot ccf Results Roll
+ccf_tbl_roll %>%
+  filter(industry_code %in% top25_peak,
+         difference==0) %>%
+  group_by(indicator, lag, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(y = lag, x = date_window_end, fill = mean_corr)) +
+  geom_tile() +
+  facet_wrap(~indicator) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = " Bottom 25 - Avg. Cross-Correlation per Lag and Indicator (Peak highlighted)",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+
+# Plot Distribution by Question
+dcor_tbl_roll_peak %>% 
+  filter(industry_code %in% top25_peak, 
+         difference == 0,
+         peak_lag %in% c(-6:6)) %>%
+  group_by(indicator, industry_code, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  group_by(indicator, date_window_end) %>%
+  summarise(median_corr = median(mean_corr),
+            q10 = quantile(mean_corr, 0.10),
+            q25 = quantile(mean_corr, 0.25),
+            q75 = quantile(mean_corr, 0.75),
+            q90 = quantile(mean_corr, 0.90),
+            .groups =  "drop") %>%
+  ggplot(aes(x = date_window_end)) +
+  facet_wrap(~ indicator) +
+  geom_ribbon(aes(ymin = q10, ymax = q90), fill = "grey90") +
+  geom_ribbon(aes(ymin = q25, ymax = q75), fill = "grey60") +
+  geom_line(aes(y = median_corr), color = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  labs(
+    title = " Bottom 25 - Development of Peak Correlation distribution by Question",
+    x = "Date Window End",
+    y = "Distance Correlation"
+  )
+```
+
+**High Variance Industriess**
+Plot: Var Top 5
+```{r Variance Top 5 Peak}
+# Top Industries
+var05_peak <- score_tbl_roll %>%
+  filter(level %in% c(1:3)) %>%
+  slice_max(var, n=5, with_ties = FALSE) %>%
+  pull(industry_code)
+
+#Plot CCF Full Window
+heatmap_data <- ccf_tbl_full %>%
+  filter(industry_code %in% top25_peak,
+         difference==0) %>%
+  group_by(indicator, lag) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop")
+  
+highlight_points <- heatmap_data %>%
+  group_by(indicator) %>%
+  slice_max(abs(mean_corr), n = 1, with_ties = FALSE) %>%  # absolute value now
+  ungroup()
+
+ggplot(heatmap_data, aes(x = lag, y = indicator, fill = mean_corr)) +
+  geom_tile() +
+  geom_tile(data = highlight_points,
+            color = "yellow", size = 1.2, fill = NA) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = "High Variance - Avg. Cross-Correlation per Lag and Indicator (Peak highlighted)",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+
+
+# Plot ccf Results Roll
+ccf_tbl_roll %>%
+  filter(industry_code %in% top25_peak,
+         difference==0) %>%
+  group_by(indicator, lag, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(y = lag, x = date_window_end, fill = mean_corr)) +
+  geom_tile() +
+  facet_wrap(~indicator) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = " High Variabce - Avg. Cross-Correlation per Lag and Indicator",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+
+# Plot Distribution by Question
+dcor_tbl_roll_peak %>% 
+  filter(industry_code %in% top25_peak, 
+         difference == 0,
+         peak_lag %in% c(-6:6)) %>%
+  group_by(indicator, industry_code, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  group_by(indicator, date_window_end) %>%
+  summarise(median_corr = median(mean_corr),
+            q10 = quantile(mean_corr, 0.10),
+            q25 = quantile(mean_corr, 0.25),
+            q75 = quantile(mean_corr, 0.75),
+            q90 = quantile(mean_corr, 0.90),
+            .groups =  "drop") %>%
+  ggplot(aes(x = date_window_end)) +
+  facet_wrap(~ indicator) +
+  geom_ribbon(aes(ymin = q10, ymax = q90), fill = "grey90") +
+  geom_ribbon(aes(ymin = q25, ymax = q75), fill = "grey60") +
+  geom_line(aes(y = median_corr), color = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  labs(
+    title = " High Variance - Development of Peak Correlation distribution by Question",
+    x = "Date Window End",
+    y = "Distance Correlation"
+  )
+```
+
+
+Plot: Var Top 25
+```{r Variance Top 25 Peak}
+# Top Industries
+var25_peak <- score_tbl_roll %>%
+  filter(level %in% c(1:3)) %>%
+  slice_max(var, n=25, with_ties = FALSE) %>%
+  pull(industry_code)
+
+#Plot CCF Full Window
+heatmap_data <- ccf_tbl_full %>%
+  filter(industry_code %in% top25_peak,
+         difference==0) %>%
+  group_by(indicator, lag) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop")
+  
+highlight_points <- heatmap_data %>%
+  group_by(indicator) %>%
+  slice_max(abs(mean_corr), n = 1, with_ties = FALSE) %>%  # absolute value now
+  ungroup()
+
+ggplot(heatmap_data, aes(x = lag, y = indicator, fill = mean_corr)) +
+  geom_tile() +
+  geom_tile(data = highlight_points,
+            color = "yellow", size = 1.2, fill = NA) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = "High Variance - Avg. Cross-Correlation per Lag and Indicator (Peak highlighted)",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+
+
+# Plot ccf Results Roll
+ccf_tbl_roll %>%
+  filter(industry_code %in% top25_peak,
+         difference==0) %>%
+  group_by(indicator, lag, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(y = lag, x = date_window_end, fill = mean_corr)) +
+  geom_tile() +
+  facet_wrap(~indicator) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = " High Variabce - Avg. Cross-Correlation per Lag and Indicator",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+
+# Plot Distribution by Question
+dcor_tbl_roll_peak %>% 
+  filter(industry_code %in% top25_peak, 
+         difference == 0,
+         peak_lag %in% c(-6:6)) %>%
+  group_by(indicator, industry_code, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  group_by(indicator, date_window_end) %>%
+  summarise(median_corr = median(mean_corr),
+            q10 = quantile(mean_corr, 0.10),
+            q25 = quantile(mean_corr, 0.25),
+            q75 = quantile(mean_corr, 0.75),
+            q90 = quantile(mean_corr, 0.90),
+            .groups =  "drop") %>%
+  ggplot(aes(x = date_window_end)) +
+  facet_wrap(~ indicator) +
+  geom_ribbon(aes(ymin = q10, ymax = q90), fill = "grey90") +
+  geom_ribbon(aes(ymin = q25, ymax = q75), fill = "grey60") +
+  geom_line(aes(y = median_corr), color = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  labs(
+    title = " High Variance - Development of Peak Correlation distribution by Question",
+    x = "Date Window End",
+    y = "Distance Correlation"
+  )
+```
+
+
+**Level 4 & 5**
+Plot: 
+```{r Level 4 & 5}
+top05_level_peak <- score_tbl_roll %>%
+  filter(level %in% c(4:5)) %>%
+  slice_max(score, n=5, with_ties = FALSE) %>%
+  pull(industry_code)
+
+#Plot CCF Full Window
+heatmap_data <- ccf_tbl_full %>%
+  filter(industry_code %in% top05_level_peak,
+         difference==0) %>%
+  group_by(indicator, lag) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop")
+  
+highlight_points <- heatmap_data %>%
+  group_by(indicator) %>%
+  slice_max(abs(mean_corr), n = 1, with_ties = FALSE) %>%  # absolute value now
+  ungroup()
+
+ggplot(heatmap_data, aes(x = lag, y = indicator, fill = mean_corr)) +
+  geom_tile() +
+  geom_tile(data = highlight_points,
+            color = "yellow", size = 1.2, fill = NA) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = "High Variance - Avg. Cross-Correlation per Lag and Indicator (Peak highlighted)",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+
+
+# Plot ccf Results Roll
+ccf_tbl_roll %>%
+  filter(industry_code %in% top05_level_peak,
+         difference==0) %>%
+  group_by(indicator, lag, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(y = lag, x = date_window_end, fill = mean_corr)) +
+  geom_tile() +
+  facet_wrap(~indicator) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", 
+                       midpoint = 0,
+                       limits = c(-1, 1)) +
+  theme_minimal() +
+  labs(title = " High Variabce - Avg. Cross-Correlation per Lag and Indicator",
+       x = "Lag",
+       y = "Indicator",
+       fill = "Mean Corr")
+
+# Plot Distribution by Question
+dcor_tbl_roll_peak %>% 
+  filter(industry_code %in% top05_level_peak, 
+         difference == 0,
+         peak_lag %in% c(-6:6)) %>%
+  group_by(indicator, industry_code, date_window_end) %>%
+  summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
+  group_by(indicator, date_window_end) %>%
+  summarise(median_corr = median(mean_corr),
+            q10 = quantile(mean_corr, 0.10),
+            q25 = quantile(mean_corr, 0.25),
+            q75 = quantile(mean_corr, 0.75),
+            q90 = quantile(mean_corr, 0.90),
+            .groups =  "drop") %>%
+  ggplot(aes(x = date_window_end)) +
+  facet_wrap(~ indicator) +
+  geom_ribbon(aes(ymin = q10, ymax = q90), fill = "grey90") +
+  geom_ribbon(aes(ymin = q25, ymax = q75), fill = "grey60") +
+  geom_line(aes(y = median_corr), color = "red") +
+  scale_y_continuous(limits = c(0, 1)) +
+  theme_minimal() +
+  labs(
+    title = " High Variance - Development of Peak Correlation distribution by Question",
+    x = "Date Window End",
+    y = "Distance Correlation"
+  )
+```
+
+##### Predictive Sets
+
+================================================================================
+ToDo:
+
 ### Identify interesting Subsets
-
-Over all Questions (Peak thing)
-- Set highly correlated
-- Set low correlated
-- Set high variance
-
-
 Best Predictor (-6:-1)
 - Set best predictor 
 
@@ -762,5 +1543,7 @@ Best Predictor (-6:-1)
 Best early predictor (-6:-4)
 - Set best predictor 
 
-By BB Tunring Points
+By BB Tunrning Points
 - 
+
+Varianz der Cluster anhand Unterschied in Industry Codes
