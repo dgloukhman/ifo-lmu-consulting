@@ -436,8 +436,7 @@ predictions/analysis, since based on fewer industry codes
 
 ### Development over time
 
-**General Overview**
-
+**General Overview** 
 Plot:  CCF Rolling Window
 ```{r CCF Rolling Window}
 # Filter ccf Results
@@ -864,7 +863,7 @@ res_dcor <- dcor_tbl_roll_peak %>%
   filter(level > 0,
          difference==0) %>%
   left_join(peak_dcor, by = join_by(indicator, date_window_end)) %>%
-  mutate(res_corr = 2*(peak_corr-corr)^2)
+  mutate(res_corr = (peak_corr-corr)^2)
 
 res_dcor %>% 
   select(industry_code, indicator, window_id,  corr, peak_corr, res_corr) %>%
