@@ -26,7 +26,7 @@ main_kld <- get_ts_by_question("KLD", ifo_tbl) %>% select("C0000000")
 questions <- setdiff(names(ifo_tbl), c("date", "industry_code", "level"))
 
 create_lagged_df <- function(data, lags) {
-  #helper function to create a dataframe with lagged values of the timeseries data for regression analysis
+  # helper function to create a dataframe with lagged values of the timeseries data for regression analysis
   lagged_data <- data
   for (lag in lags) {
     lagged_data <- lagged_data %>%
@@ -67,8 +67,8 @@ predictive_test_vec <- function(x, y, lag = 1, significance_level = 0.05, type =
   # list(y_only_model, full_model, a)
 }
 
-granger_main <- function() {
-  #main logic to apply the predictive test function an all time series
+granger_main <- function(forecast_type = "forecast") {
+  # main logic to apply the predictive test function an all time series
   y <- main_kld[["C0000000"]]
 
   results <- purrr::map_dfr(questions, function(q) {
@@ -76,8 +76,8 @@ granger_main <- function() {
     vars <- expand_grid(industry_code = names(data), lag = 1:5)
 
     purrr::pmap_dfr(vars, function(industry_code, lag, .progress = TRUE) {
-      res <- predictive_test_vec(data[[industry_code]], y, lag = lag, significance_level = SIGNIFICANCE_LEVEL, type = "forecast")
-      tibble(question = q, industry_code = industry_code,  causal = res$causal, lag = lag, adj_r2 = res$adj_r2, diff_adj_r2 = res$diff_adj_r2)
+      res <- predictive_test_vec(data[[industry_code]], y, lag = lag, significance_level = SIGNIFICANCE_LEVEL, type = forecast_type)
+      tibble(question = q, industry_code = industry_code, causal = res$causal, lag = lag, adj_r2 = res$adj_r2, diff_adj_r2 = res$diff_adj_r2)
     })
   })
 
@@ -97,12 +97,12 @@ plot_weight <- function(tsbl, title = paste0("Industries granger causing the mai
       axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, margin = margin(t = 10))
     )
 }
-granger_tbl <- granger_main()
+granger_tbl <- granger_main(forecast_type = "granger") 
 
 tmp <- granger_tbl %>%
-  group_by(industry_code) %>% 
+  group_by(industry_code) %>%
   filter(adj_r2 == max(adj_r2)) %>%
   ungroup() %>%
-  mutate(question = q_map[question],code= industry_code , industry_code = i_map[industry_code])
+  mutate(question = q_map[question], code = industry_code, industry_code = i_map[industry_code])
 
 # granger_tbl %>% plot_weight()
