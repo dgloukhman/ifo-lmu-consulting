@@ -27,9 +27,8 @@ granger_test_vec <- function(y_only_model, full_model, significance_level = 0.05
     # Test function to perform Granger causality test for two linear model
 
     a <- anova(y_only_model, full_model)
-
+    
     tibble(
-        weight = 0,
         causal = a$`Pr(>F)`[2] < significance_level,
         full_model_adj_r2 = summary(full_model)$adj.r.squared,
         y_only_model_adj_r2 = summary(y_only_model)$adj.r.squared,
