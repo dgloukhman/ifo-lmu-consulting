@@ -117,9 +117,8 @@ ccf_results_full <- ccf_results_full %>%
 ccf_results_full_peak <- ccf_results_full %>%
   filter(lag %in% c(-6:6)) %>% 
   group_by(ID) %>%
-  slice_max(order_by = abs(correlation), n = 1, with_ties = FALSE) %>%
-  ungroup() %>%
-  rename(peak_lag = lag, peak_corr = correlation)
+  slice_max(order_by = abs(corr), n = 1, with_ties = FALSE) %>%
+  ungroup()
 
 # Save Output as csv file
 write_csv(ccf_results_full, "LagAnalysis/results/ccf_results_full.csv")
@@ -147,9 +146,8 @@ dcor_results_full <- dcor_results_full %>%
 dcor_results_full_peak <- dcor_results_full %>%
   filter(lag %in% c(-6:6)) %>% 
   group_by(ID) %>%
-  slice_max(order_by = abs(dcor), n = 1, with_ties = FALSE) %>%
-  ungroup() %>%
-  rename(peak_lag = lag, peak_corr = dcor)
+  slice_max(order_by = abs(corr), n = 1, with_ties = FALSE) %>%
+  ungroup()
 
 # Save Output as csv file
 write_csv(dcor_results_full, "LagAnalysis/results/dcor_results_full.csv")

@@ -62,42 +62,6 @@ tsbl_roll_wide <- function(tsbl_wide, window_size = 24, step = 1) {
   )
 }
 
-# --------------------------------------------------------------------
-# Function: extract_msm_probs_tbl
-# Purpose:
-#   Tidy smoothed regime probabilities from an MSwM fit and align them
-#   to an external date index; also compute [start, end) rectangles for
-#   plotting regime spans.
-# Arguments:
-#   - msm_model : fitted MSwM model (e.g., class "MSwMfit"); must expose
-#                 slot @Fit@smoProb with T×R smoothed probabilities.
-#   - tsbl_dates: vector of dates used to align probabilities (length ≥ T).
-# Returns:
-#   tibble with columns:
-#     - date  : aligned timestamp per row
-#     - r1..rR: smoothed regime probabilities per regime
-#     - start : = date (rectangle left)
-#     - end   : lead(date) (rectangle right; last row typically NA)
-# Notes:
-#   - Only the first length(tsbl_dates) rows of smoProb are used; if
-#     msm_model has fewer rows than tsbl_dates, results are truncated.
-#   - For rectangle plots, you often drop the last row where end is NA.
-#   - Ensure the timing of msm_model input matches tsbl_dates (same
-#     sampling and alignment) to avoid off-by-one artifacts.
-# --------------------------------------------------------------------
-extract_msm_probs_tbl <- function(msm_model, tsbl_dates) {
-  msm_probs <- msm_model@Fit@smoProb[1:length(tsbl_dates), ]
-  colnames(msm_probs) <- paste0("r", seq_len(ncol(msm_probs)))
-  msm_probs_tbl <- msm_probs %>%
-    as_tibble() %>%
-    mutate(date = tail(tsbl_dates, nrow(msm_probs))) %>%
-    relocate(date) %>%
-    mutate(
-      start = date,
-      end = lead(date)
-    )
-  return(msm_probs_tbl)
-}
 
 # --------------------------------------------------------------------
 # Postprocessing: ADF Test Results
@@ -113,6 +77,7 @@ extract_msm_probs_tbl <- function(msm_model, tsbl_dates) {
 #   - industry_code: industry code part (e.g., "C1105000")
 #   - difference  : integer K extracted from "-diffK" suffix (0 if absent)
 #   - level       : hierarchy level from get_level(industry_code)
+#   - sector      : first 3 digits of the industry code (level 1)
 # Notes:
 #   - Does not modify numeric test stats/decisions; only augments metadata.
 #   - Assumes "-diff" suffix formatting (e.g., "KLD-diff1"); nonconforming
@@ -125,7 +90,9 @@ adf_postprocess <- function(adf_results_full) {
     separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
     mutate(
       difference = if_else(is.na(diff_part), 0L, as.integer(diff_part)),
-      level = sapply(industry_code, get_level)
+      level = sapply(industry_code, get_level),
+      sector = str_sub(industry_code, 1, 3),
+      ID = str_c(ID, date_window_end, sep = "_")
     ) %>%
     select(-diff_part)
 }
@@ -138,7 +105,7 @@ adf_postprocess <- function(adf_results_full) {
 # Input expectations:
 #   - Columns include indicator (composite id before split).
 # Output columns added/standardized:
-#   - ID, indicator, industry_code, difference, level (as above).
+#   - ID, indicator, industry_code, difference, level, sector (as above).
 # Notes:
 #   - Keeps original CCF metrics (lag, correlation) unchanged.
 # --------------------------------------------------------------------
@@ -149,27 +116,8 @@ ccf_postprocess <- function(ccf_results_full) {
     separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
     mutate(
       difference = if_else(is.na(diff_part), 0L, as.integer(diff_part)),
-      level = sapply(industry_code, get_level)
-    ) %>%
-    select(-diff_part)
-}
-
-# --------------------------------------------------------------------
-# Postprocessing: MI Analysis Results
-# Purpose:
-#   Same metadata normalization for mutual information outputs where
-#   'indicator' holds "<indicator[-diffK]>_<industry_code>".
-# Input expectations / Output columns:
-#   - Same as ccf_postprocess(); preserves MI metrics (lag, mi).
-# --------------------------------------------------------------------
-mi_postprocess <- function(mi_results_full) {
-  mi_results_full %>%
-    rename(ID = indicator) %>%
-    separate(ID, into = c("indicator", "industry_code"), sep = "_", remove = FALSE) %>%
-    separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
-    mutate(
-      difference = if_else(is.na(diff_part), 0L, as.integer(diff_part)),
-      level = sapply(industry_code, get_level)
+      level = sapply(industry_code, get_level),
+      sector = str_sub(industry_code, 1, 3)
     ) %>%
     select(-diff_part)
 }
@@ -189,7 +137,8 @@ dcor_postprocess <- function(dcor_results_full) {
     separate(indicator, into = c("indicator", "diff_part"), sep = "-diff", fill = "right") %>%
     mutate(
       difference = if_else(is.na(diff_part), 0L, as.integer(diff_part)),
-      level = sapply(industry_code, get_level)
+      level = sapply(industry_code, get_level),
+      sector = str_sub(industry_code, 1, 3)
     ) %>%
     select(-diff_part)
 }
