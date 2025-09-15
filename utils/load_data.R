@@ -177,4 +177,16 @@ get_industry_dict_df <- function(data_path, questions = FALSE) {
   industries
 }
 
+load_industry_code_map <- function() {
+  i_map <- read_csv("data/industries_codes_titles.csv")
+  i_map <- setNames(i_map$industry_title, i_map$industry_code)
+  i_map
+}
+
+load_question_map <- function() {
+  q_map <- read_csv("data/questions_codes_titles.csv")
+  q_map <- setNames( q_map$question_title, q_map$question_code)
+  q_map
+}
+
 #ifo_tbl <- read_ifo_data()
