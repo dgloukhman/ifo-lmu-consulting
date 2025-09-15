@@ -87,6 +87,7 @@ adf_results_roll <- ifo_tsbl_roll %>%
   as_tibble() %>%
   group_by(window_id) %>%
   group_split() %>%
+  #.[1:50] %>%                      # Option to limit input/run time for testing
   future_map_dfr(~ {
     df <- .x
     run_adf_tests(df) %>%
@@ -98,9 +99,7 @@ adf_results_roll <- ifo_tsbl_roll %>%
 
 # Postprocessing of adf Results
 adf_results_roll <- adf_results_roll %>%
-  adf_postprocess() %>%
-  # Add the date_window_end to ID (enforces unique ID)
-  mutate(ID = str_c(ID, date_window_end, sep = "_"))
+  adf_postprocess()
 
 # Save Output as temp data file
 write_csv(adf_results_roll, "LagAnalysis/results/adf_results_roll.csv")
@@ -119,38 +118,21 @@ main_index = "KLD_C0000000"
 # Max lag for tests
 max_lag <- 12
 
-# Set target list
-stationary_targets_roll <- adf_results_roll %>%
-  # Increase stability of output by selecting first differences
-  filter(difference == 1) %>%
-  # Step 1: exclude main index
-  filter(!str_starts(ID, "main_index")) %>%
-  # Step 2: keep only stationary
-  filter(adf_is_stationary) %>%
-  # Step 2: group per series
-  group_by(indicator, industry_code, date_window_end) %>%
-  # Step 3: pick least-differenced
-  slice_min(difference, with_ties = FALSE) %>%    
-  ungroup() %>%
-  # Step 4: exclude main index
-  filter(!str_starts(ID, "main_index")) %>% 
-  pull(ID)
-
-
-# --------------------------------------------------------------------
-# Compute Rolling CCF
-
 # Set target indices for ccf calclation
 target_codes <- ifo_tsbl_roll %>%
   names() %>%
   setdiff(c("date", "date_window_end", "window_id", main_index))
+
+
+# --------------------------------------------------------------------
+# Compute Rolling CCF
 
 # Compute rolling ccf tibble
 ccf_tbl_roll <- ifo_tsbl_roll %>%
   as_tibble() %>%
   group_by(window_id) %>%
   group_split() %>%
-  #.[1:50] %>% 
+  #.[1:50] %>%                      # Option to limit input/run time for testing
   future_map_dfr(function(df) {
     end_date <- df$date_window_end[1]
     map_dfr(
@@ -162,7 +144,7 @@ ccf_tbl_roll <- ifo_tsbl_roll %>%
         ccf_obj <- ccf(x, y, lag.max = max_lag, plot = FALSE)
         tibble(
           lag = as.numeric(ccf_obj$lag),
-          correlation = as.numeric(ccf_obj$acf),
+          corr = as.numeric(ccf_obj$acf),
           indicator = ind,
           date_window_end = end_date,
           window_id = df$window_id[1]
@@ -181,29 +163,24 @@ ccf_tbl_roll <- ccf_tbl_roll %>%
 ccf_tbl_roll_peak <- ccf_tbl_roll %>%
   filter(lag %in% c(-6:6)) %>% 
   group_by(ID, window_id) %>%
-  slice_max(order_by = abs(correlation), n = 1, with_ties = FALSE) %>%
-  ungroup() %>%
-  rename(peak_lag = lag, peak_corr = correlation)
+  slice_max(order_by = abs(corr), n = 1, with_ties = FALSE) %>%
+  ungroup()
 
 # Save Output as temp data file
 write_csv(ccf_tbl_roll, "LagAnalysis/results/ccf_results_roll.csv")
 write_csv(ccf_tbl_roll_peak, "LagAnalysis/results/ccf_results_roll_peak.csv")
 # ccf_tbl_roll <- read_csv("LagAnalysis/results/ccf_results_roll.csv")
 
+
 # --------------------------------------------------------------------
 # Compute Rolling dCor
-
-# Set target indices for ccf calclation
-target_codes <- ifo_tsbl_roll %>%
-  names() %>%
-  setdiff(c("date", "date_window_end", "window_id", main_index))
 
 # Compute rolling ccf tibble
 dcor_tbl_roll <- ifo_tsbl_roll %>%
   as_tibble() %>%
   group_by(window_id) %>%
   group_split() %>%
-  #.[1:50] %>% 
+  #.[1:50] %>%                      # Option to limit input/run time for testing 
   future_map_dfr(function(df) {
     end_date <- df$date_window_end[1]
     map_dfr(
@@ -232,9 +209,8 @@ dcor_tbl_roll <- dcor_tbl_roll %>%
 dcor_tbl_roll_peak <- dcor_tbl_roll %>%
   filter(lag %in% c(-6:6)) %>%
   group_by(ID, window_id) %>%
-  slice_max(order_by = abs(dcor), n = 1, with_ties = FALSE) %>%
-  ungroup() %>%
-  rename(peak_lag = lag, peak_dcor = dcor)
+  slice_max(order_by = abs(corr), n = 1, with_ties = FALSE) %>%
+  ungroup()
 
 # Save Output as temp data file
 write_csv(dcor_tbl_roll, "LagAnalysis/results/dcor_results_roll.csv")

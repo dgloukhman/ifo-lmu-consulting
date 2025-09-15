@@ -47,7 +47,7 @@ get_ccf_full <- function(tsbl, main_index, target_code, max_lag = 12) {
   
   tibble(
     lag = as.numeric(ccf_obj$lag),
-    correlation = as.numeric(ccf_obj$acf),
+    corr = as.numeric(ccf_obj$acf),
     indicator = target_code
   )
 }
@@ -134,7 +134,7 @@ get_dcor_full <- function(tsbl, main_index, target_code, max_lag = 12) {
     dcor(x_shifted[jj], y[jj])
   })
   
-  tibble(lag = lags, dcor = dcor_vals, indicator = target_code)
+  tibble(lag = lags, corr = dcor_vals, indicator = target_code)
 }
 
 # --------------------------------------------------------------------
@@ -170,5 +170,5 @@ get_dcor_pair <- function(x, y, max_lag = 12) {
   })
   
   tibble(lag = lags, 
-         dcor = dcor_vals)
+         corr = dcor_vals)
 }

@@ -19,3 +19,4 @@ dynlm
 RTransferEntropy
 mpmi
 energy
+sparsegl
