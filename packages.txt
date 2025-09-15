@@ -4,9 +4,6 @@ here
 BCDating
 MSwM
 tsibble
-fabletools
-fable
-feasts
 lmtest
 slider
 tseries
@@ -16,7 +13,5 @@ future
 future.apply
 zoo
 dynlm
-RTransferEntropy
 mpmi
 energy
-sparsegl
