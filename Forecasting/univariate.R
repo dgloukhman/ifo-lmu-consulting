@@ -6,7 +6,7 @@ source(here("Forecasting", "helper.R"))
 
 # Which ts predicts the main index the best
 SIGNIFICANCE_LEVEL <- 0.05
-LEVELS <- c(0, 3)
+LEVELS <- c(0, 2,3)
 
 
 ifo_tbl <- read_ifo_data() %>%
@@ -74,19 +74,7 @@ granger_main <- function(forecast_type = "forecast") {
 
   return(results)
 }
-# plot tible
 
-plot_weight <- function(tsbl, title = paste0("Industries granger causing the main index")) {
-  ggplot(tsbl, aes(x = industry_code, y = weight, fill = causal)) +
-    geom_bar(stat = "identity", ) +
-    scale_fill_manual(values = c("TRUE" = "green", "FALSE" = "red")) +
-    labs(x = "Industry Code", fill = "Causal", title = title) + # Removed y-axis label
-    theme_minimal() +
-    theme(
-      axis.text.y = element_blank(), # Removes y-axis text
-      axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, margin = margin(t = 10))
-    )
-}
 granger_tbl <- granger_main(forecast_type = "granger")
 
 tmp <- granger_tbl %>%

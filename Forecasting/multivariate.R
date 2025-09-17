@@ -6,7 +6,7 @@ source(here("Forecasting", "helper.R"))
 
 
 SIGNIFICANCE_LEVEL <- 0.05
-LEVELS <- c(0, 3)
+LEVELS <- c(0, 2)
 
 
 ifo_tbl <- read_ifo_data() %>%
