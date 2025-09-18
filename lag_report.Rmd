@@ -1776,6 +1776,8 @@ fit_lm <- lm(y ~ X)
 
 summary.lm(fit_lm)
 
+r2_l1 <- summary(fit_lm)$adj.r.squared
+
 results <- results %>% 
   mutate(fitted_l1 = fitted(fit_lm))
 ```
@@ -1795,6 +1797,8 @@ fit_lm <- lm(y ~ X)
 
 summary.lm(fit_lm)
 
+r2_pred <- summary(fit_lm)$adj.r.squared
+
 results <- results %>%
   mutate(fitted_score = fitted(fit_lm))
 ```
@@ -1813,6 +1817,8 @@ X <- data %>%
 fit_lm <- lm(y ~ X)
 
 summary.lm(fit_lm)
+
+r2_bench <- summary(fit_lm)$adj.r.squared
 
 results <- results %>%
   mutate(fitted_benchmark = fitted(fit_lm))
@@ -1874,6 +1880,89 @@ results %>%
     y = "KLD",
     color = "Model"
   )
+```
+
+**Benchmark against Random Sets**
+
+```{r}
+# Get industry codes 
+industry_codes <- predictor %>%
+  as_tibble() %>%
+  select(-date, -C0000000) %>%
+  names()
+
+# Pre-sample all draws
+set.seed(123)
+B <- 500; k <- 5
+draws <- replicate(B, sample(industry_codes, k), simplify = FALSE)
+
+# Function to score one draw (adjusted R^2 + RMSE + store codes)
+score_draw <- function(codes_draw) {
+  X <- data %>%
+    as_tibble() %>%
+    select(-date) %>%
+    select(contains(c(codes_draw, "C0000000_lag"))) %>%
+    as.matrix()
+  
+  y  <- data$C0000000
+
+  fit <- lm(y ~ X)
+
+  list(
+    codes   = codes_draw,
+    r2_adj  = summary(fit)$adj.r.squared,
+    rmse    = sqrt(mean((y - fitted(fit))^2))
+  )
+}
+
+# Parallel fit for random draw models 
+res <- future_map(
+  draws, score_draw,
+  .options = furrr_options(seed = 123, scheduling = 1),
+  .progress = TRUE
+)
+
+# Collect results (with codes as a list-column), then pivot long
+results_rnd <- tibble(
+  draw   = seq_along(res),
+  codes  = lapply(res, `[[`, "codes"),
+  r2_adj = vapply(res, `[[`, numeric(1), "r2_adj"),
+  rmse   = vapply(res, `[[`, numeric(1), "rmse")
+)
+
+# Reference points from other models for Boxplot
+r2_points <- tibble(
+  model = c("benchmark", "fitted_l1", "fitted_score"),
+  value = c(r2_bench,     r2_l1,       r2_pred)
+)
+
+legend_title <- "Models"
+labels_map <- c(
+  benchmark  = "Benchmark",
+  fitted_l1   = "ElasticNet",
+  fitted_score= "Score Model"
+)
+
+color_map <- c(
+  "benchmark"   = "blue",
+  "fitted_l1"    = "#F8766D",
+  "fitted_score" = "#00BFC4"
+)
+
+# Boxplot + points (adjusted R²)
+ggplot(results_rnd, aes(x = "", y = r2_adj)) +
+  geom_boxplot(fill = NA, outlier.colour = "red") +
+  geom_point(data = r2_points, aes(x = "", y = value, color = model),
+             size = 3, alpha = 0.95, position = position_jitter(width = 0.03, height = 0)) +
+  scale_color_manual(values = color_map,
+                     breaks = names(labels_map),
+                     labels = labels_map,
+                     name   = legend_title) +
+  labs(
+    title = "Distribution of adjusted R² across random 5-code subsets",
+    x = NULL, y = expression(Adj.~R^2)
+  ) +
+  theme_minimal()
 ```
 
 
@@ -1974,9 +2063,11 @@ X <- data %>%
   select(contains(c(coef_net, "C0000000_lag"))) %>%
   as.matrix()
 
-fit_lm <- lm(y ~ X, intercept = FALSE)
+fit_lm <- lm(y ~ X)
 
 summary.lm(fit_lm)
+
+r2_l1 <- summary(fit_lm)$adj.r.squared
 
 results <- results %>% 
   mutate(fitted_l1 = fitted(fit_lm))
@@ -1997,6 +2088,8 @@ fit_lm <- lm(y ~ X)
 
 summary.lm(fit_lm)
 
+r2_pred <- summary(fit_lm)$adj.r.squared
+
 results <- results %>%
   mutate(fitted_score = fitted(fit_lm))
 ```
@@ -2015,6 +2108,8 @@ X <- data %>%
 fit_lm <- lm(y ~ X)
 
 summary.lm(fit_lm)
+
+r2_bench <- summary(fit_lm)$adj.r.squared
 
 results <- results %>%
   mutate(fitted_benchmark = fitted(fit_lm))
@@ -2076,6 +2171,89 @@ results %>%
     y = "KLD",
     color = "Model"
   )
+```
+
+**Benchmark against Random Sets**
+
+```{r}
+# Get industry codes 
+industry_codes <- predictor %>%
+  as_tibble() %>%
+  select(-date, -C0000000) %>%
+  names()
+
+# Pre-sample all draws
+set.seed(123)
+B <- 500; k <- 5
+draws <- replicate(B, sample(industry_codes, k), simplify = FALSE)
+
+# Function to score one draw (adjusted R^2 + RMSE + store codes)
+score_draw <- function(codes_draw) {
+  X <- data %>%
+    as_tibble() %>%
+    select(-date) %>%
+    select(contains(c(codes_draw, "C0000000_lag"))) %>%
+    as.matrix()
+  
+  y  <- data$C0000000
+
+  fit <- lm(y ~ X)
+
+  list(
+    codes   = codes_draw,
+    r2_adj  = summary(fit)$adj.r.squared,
+    rmse    = sqrt(mean((y - fitted(fit))^2))
+  )
+}
+
+# Parallel fit for random draw models 
+res <- future_map(
+  draws, score_draw,
+  .options = furrr_options(seed = 123, scheduling = 1),
+  .progress = TRUE
+)
+
+# Collect results (with codes as a list-column), then pivot long
+results_rnd <- tibble(
+  draw   = seq_along(res),
+  codes  = lapply(res, `[[`, "codes"),
+  r2_adj = vapply(res, `[[`, numeric(1), "r2_adj"),
+  rmse   = vapply(res, `[[`, numeric(1), "rmse")
+)
+
+# Reference points from other models for Boxplot
+r2_points <- tibble(
+  model = c("benchmark", "fitted_l1", "fitted_score"),
+  value = c(r2_bench,     r2_l1,       r2_pred)
+)
+
+legend_title <- "Models"
+labels_map <- c(
+  benchmark  = "Benchmark",
+  fitted_l1   = "ElasticNet",
+  fitted_score= "Score Model"
+)
+
+color_map <- c(
+  "benchmark"   = "blue",
+  "fitted_l1"    = "#F8766D",
+  "fitted_score" = "#00BFC4"
+)
+
+# Boxplot + points (adjusted R²)
+ggplot(results_rnd, aes(x = "", y = r2_adj)) +
+  geom_boxplot(fill = NA, outlier.colour = "red") +
+  geom_point(data = r2_points, aes(x = "", y = value, color = model),
+             size = 3, alpha = 0.95, position = position_jitter(width = 0.03, height = 0)) +
+  scale_color_manual(values = color_map,
+                     breaks = names(labels_map),
+                     labels = labels_map,
+                     name   = legend_title) +
+  labs(
+    title = "Distribution of adjusted R² across random 5-code subsets",
+    x = NULL, y = expression(Adj.~R^2)
+  ) +
+  theme_minimal()
 ```
 
 
