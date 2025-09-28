@@ -1,11 +1,22 @@
 # Load ggplot2 for plotting
+source("utils/setup_packages.R")
+install_packages_from_file()
+source(here("Forecasting", "helper.R"))
+source(here("Forecasting", "univariate.R"))
 library(ggplot2)
 
 #' Plot adjusted R-squared for full vs. reduced models
 #'
 #' @param data A dataframe containing the adjusted R-squared values.
 #' @return A ggplot object.
-adj_r2_plot_f <- function(data) {
+adj_r2_plot_f <- function(data, forecast_type) {
+    data <- data %>%
+        group_by(industry_code) %>%
+        filter(causal == TRUE & full_model_adj_r2 == max(full_model_adj_r2)) %>%
+        ungroup() %>%
+        mutate(question = q_map[question], code = industry_code, industry_code = i_map[industry_code])
+
+
     p <- ggplot(data, aes(x = code)) +
         # Reduced model line
         geom_line(
@@ -34,7 +45,7 @@ adj_r2_plot_f <- function(data) {
         )
 
     ggsave(
-        "adj_r2_univariate.png",
+        paste0("adj_r2_plot_", forecast_type, ".png"),
         p,
         width = 16,
         height = 9,
@@ -65,7 +76,7 @@ plot_ts <- function(data) {
 #' @param ts_1 The first time series.
 #' @param ts_2 The second time series.
 #' @return A ggplot object.
-plot_cluster_with_main <- function(ifo_tbl, ts_1, ts_2) {
+plot_cluster_with_main <- function(ifo_tbl, ts_1, ts_2, forecast_type) {
     # Pivot to long format for easier filtering
     data <- ifo_tbl %>%
         filter(industry_code %in% c(ts_1, ts_2)) %>%
@@ -89,7 +100,7 @@ plot_cluster_with_main <- function(ifo_tbl, ts_1, ts_2) {
         theme_minimal()
 
     ggsave(
-        "main_vs_top.png",
+        paste0("main_vs_top_", forecast_type, ".png"),
         p,
         width = 16,
         height = 9,
@@ -102,7 +113,7 @@ plot_cluster_with_main <- function(ifo_tbl, ts_1, ts_2) {
 #'
 #' @param data A dataframe containing the Granger causality results.
 #' @return A ggplot object.
-plot_distribution_of_gc_questions <- function(data) {
+plot_distr_of_gc_questions <- function(data, forecast_type) {
     df <- data %>%
         filter(industry_code != "date") %>%
         group_by(question) %>%
@@ -123,7 +134,7 @@ plot_distribution_of_gc_questions <- function(data) {
         theme_minimal()
 
     ggsave(
-        "distribution_gc_questions.png",
+        paste0("distribution_gc_questions_", forecast_type, ".png"),
         p,
         width = 16,
         height = 9,
@@ -131,3 +142,46 @@ plot_distribution_of_gc_questions <- function(data) {
     )
     p
 }
+
+ifo_tbl <- load_and_preprocess_data(UNIVARIATE_LEVELS)
+ifo_tbl_univariate <- ifo_tbl %>% filter(industry_code != "C0000000")
+
+main_kld <- get_ts_by_question("KLD", ifo_tbl) %>%
+    select("C0000000") %>%
+    pull("C0000000")
+
+
+
+
+forecast_type <- "instantaneous"
+granger_univariate_tbl <- granger_main(
+    forecast_type = forecast_type,
+    main_kld = main_kld,
+    ifo_tbl = ifo_tbl_univariate,
+    questions = setdiff(names(ifo_tbl_univariate), c("date", "industry_code", "level"))
+)
+adj_r2_plot_f(granger_univariate_tbl, forecast_type)
+plot_distr_of_gc_questions(granger_univariate_tbl, forecast_type)
+top_ts <- granger_univariate_tbl %>%
+    filter(causal == TRUE) %>%
+    slice_max(diff_adj_r2, n = 1) %>%
+    pull(industry_code)
+plot_cluster_with_main(ifo_tbl, top_ts, "C0000000", forecast_type)
+
+
+
+forecast_type <- "simple"
+granger_univariate_tbl <- granger_main(
+    forecast_type = forecast_type,
+    main_kld = main_kld,
+    ifo_tbl = ifo_tbl_univariate,
+    questions = setdiff(names(ifo_tbl_univariate), c("date", "industry_code", "level"))
+)
+adj_r2_plot_f(granger_univariate_tbl, forecast_type)
+plot_distr_of_gc_questions(granger_univariate_tbl, forecast_type)
+
+top_ts <- granger_univariate_tbl %>%
+    filter(causal == TRUE) %>%
+    slice_max(diff_adj_r2, n = 1) %>%
+    pull(industry_code)
+plot_cluster_with_main(ifo_tbl, top_ts, "C0000000", forecast_type)

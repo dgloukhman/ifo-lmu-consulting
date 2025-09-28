@@ -63,7 +63,6 @@ perform_granger_test <- function(x, y, lag = 1, significance_level = 0.05, forec
   } else {
     x_lags <- create_lagged_df(tibble(x), lag) %>% select(-all_of(names(tibble(x))))
   }
-  x_lags <- create_lagged_df(tibble(x), lag)
   reduced_data <- cbind(y_t = y, y_lags)
 
   model_data <- cbind(y_t = y, y_lags, x_lags)
