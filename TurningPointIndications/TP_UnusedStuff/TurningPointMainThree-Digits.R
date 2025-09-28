@@ -154,7 +154,7 @@ cluster_states_df <- average_cluster_probabilities(ifo_probs_three_digits, clust
 cluster_states_df <- mark_turningpoints(cluster_states_df, 
                                         lower = 0.33,
                                         upper = 0.66)
-
+cluster_components_df
 cluster_exp_tp <- cluster_states_df %>% filter(phase == "expansion", turning_point == TRUE) %>% pull(date)
 cluster_contr_tp <- cluster_states_df %>% filter(phase == "contraction", turning_point == TRUE) %>% pull(date)
 
