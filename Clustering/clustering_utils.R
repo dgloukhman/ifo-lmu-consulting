@@ -148,35 +148,6 @@ get_cluster_avrg <- function(ts_long_df, ts_ccf_matrix) {
   
 }
 
-
-# ------------------------------------------------------------------------------
-# Function: df_codes_to_titles
-# Purpose:
-#   Converts industry and question codes in a dataframe to their full titles,
-#   using question_df and industries_df dictionaries.
-# Arguments:
-#   - df                     : dataframe to convert
-#   - data_path              : path to csv dictionaries (unused here, could extend)
-#   - question_code_col_name : column name with question codes
-#   - industry_code_col_name : column name with industry codes
-# Returns:
-#   - dataframe with codes replaced by human-readable titles
-# ------------------------------------------------------------------------------
-df_codes_to_titles <- function(df, data_path, question_code_col_name, industry_code_col_name) {
-  df <- df %>%
-    rename(question_code = all_of(question_code_col_name)) %>%
-    left_join(question_df, by = "question_code") %>%
-    select(-question_code) %>%
-    relocate(question_title, .before = everything())
-  
-  df <- df %>% 
-    rename(industry_code = all_of(industry_code_col_name) ) %>%
-    left_join(industries_df, by = "industry_code") %>%
-    select(-industry_code) %>%
-    relocate(industry_title, .before = everything())
-}
-
-
 # ------------------------------------------------------------------------------
 # Function: plot_ccfs_cluster
 # Purpose:

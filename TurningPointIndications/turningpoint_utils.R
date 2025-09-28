@@ -1,30 +1,3 @@
-# collecting all sorts of relevant functions for turning points here, 
-# check if second script necessary
-# ------------------------------------------------------------------------------
-# Function: df_codes_to_titles
-# Purpose: 
-#.  Receives df and changes entries of codes to actual titles, using 
-#   'question_df' and 'industries_df' as a dictionary to translate (need to implement)
-# Arguments:
-#. - df                     : df to change codes of 
-#. - data_path.             : data_path to 'question_df' and 'industries_df'
-#. - question_code_col_name : name of column containing question codes
-#. - industry_code_col_name : name of column containing industry codes
-# ------------------------------------------------------------------------------
-df_codes_to_titles <- function(df, data_path, question_code_col_name, industry_code_col_name) {
-  df <- df %>%
-    rename(question_code = all_of(question_code_col_name)) %>%
-    left_join(question_df, by = "question_code") %>%
-    select(-question_code) %>%
-    relocate(question_title, .before = everything())
-  
-  df <- df %>% 
-    rename(industry_code = all_of(industry_code_col_name) ) %>%
-    left_join(industries_df, by = "industry_code") %>%
-    select(-industry_code) %>%
-    relocate(industry_title, .before = everything())
-}
-
 # ------------------------------------------------------------------------------
 # Function: get_bb_turning_points
 # Purpose:
