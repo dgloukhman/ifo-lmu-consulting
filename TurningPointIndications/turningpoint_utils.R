@@ -1,30 +1,3 @@
-# collecting all sorts of relevant functions for turning points here, 
-# check if second script necessary
-# ------------------------------------------------------------------------------
-# Function: df_codes_to_titles
-# Purpose: 
-#.  Receives df and changes entries of codes to actual titles, using 
-#   'question_df' and 'industries_df' as a dictionary to translate (need to implement)
-# Arguments:
-#. - df                     : df to change codes of 
-#. - data_path.             : data_path to 'question_df' and 'industries_df'
-#. - question_code_col_name : name of column containing question codes
-#. - industry_code_col_name : name of column containing industry codes
-# ------------------------------------------------------------------------------
-df_codes_to_titles <- function(df, data_path, question_code_col_name, industry_code_col_name) {
-  df <- df %>%
-    rename(question_code = all_of(question_code_col_name)) %>%
-    left_join(question_df, by = "question_code") %>%
-    select(-question_code) %>%
-    relocate(question_title, .before = everything())
-  
-  df <- df %>% 
-    rename(industry_code = all_of(industry_code_col_name) ) %>%
-    left_join(industries_df, by = "industry_code") %>%
-    select(-industry_code) %>%
-    relocate(industry_title, .before = everything())
-}
-
 # ------------------------------------------------------------------------------
 # Function: get_bb_turning_points
 # Purpose:
@@ -86,23 +59,36 @@ get_bb_turning_points <- function(values, dates, mincycle = 24, minphase = 6) {
 #   difference too small. 
 # ------------------------------------------------------------------------------
 get_markov_probabilities <- function(values, dates, smooth_probs = FALSE) {
-  # simple model with intercept only
-  lm <- lm(values ~ 1)
+  lagged_values <- dplyr::lag(values)
   
-  sw <- c(TRUE, FALSE) # vector for msm, allowing mean to change but constant variance
+  # align so we don’t have NA at start
+  df <- data.frame(
+    y = values[-1],
+    y_lag = coredata(lagged_values)[-1]
+  )
+  
+  # fit AR(1) via lm
+  lm_ar1 <- lm(y ~ y_lag, data = df)
+  
+  # simple model with intercept only
+  #lm <- lm(values ~ 1)
+  
+  sw <- c(TRUE, TRUE, TRUE) # vector for msm, allowing mean to change but constant variance
+  msm_model <- MSwM::msmFit(lm_ar1, k = 2, sw = sw)
   
   # run 3 times due to unstable estimation sometimes, making sure that differences are big enough
-  msm_model <- NULL
+ # msm_model <- NULL
+  #msm_model <- MSwM::msmFit(lm, k =2, sw =sw)
   
-  for(i in 1:3) {
-    temp_model <- MSwM::msmFit(lm, k =2, sw =sw)
+  #for(i in 1:3) {
+  #  temp_model <- MSwM::msmFit(lm, k =2, sw =sw)
     
     # compare difference of the two intercepts to threshold value of 5 (arbitrary)
-    if (abs(diff(temp_model@Coef[["(Intercept)"]])) < 5 & !is.null(msm_model)) next 
+  #  if (abs(diff(temp_model@Coef[["(Intercept)"]])) < 5 & !is.null(msm_model)) next 
     
     # keep model if differences are big enough to actually trace regime changes
-    msm_model <- temp_model    
-  }
+  #  msm_model <- temp_model    
+  #}
   # extract index of bigger regime (expansion)
   exp_regime_index <- which.max(msm_model@Coef[["(Intercept)"]])
   
@@ -113,6 +99,8 @@ get_markov_probabilities <- function(values, dates, smooth_probs = FALSE) {
   } else {
     probs <-  msm_model@Fit@filtProb[,exp_regime_index]
   }
+  # placeholder for first element to align dates, when using AR(1) term
+  probs <- c(0.5, probs)
   return(probs)
 }
 
@@ -289,8 +277,28 @@ evaluate_tp_df <- function(tp_df, main_tp_exp, main_tp_contr, valid_range = c(0,
 #===============================================================================
 # Grouping/Clustering functions
 
-# function to return lag value with highest correlation for each ts and corresponding strength
-get_max_lag_matrix <- function(tbl, question_vars, max_lag, only_negative_lag = TRUE) {
+# ------------------------------------------------------------------------------
+# Function : get_max_lag_matrix
+# Purpose : 
+#   For each time series in the provided table, computes the lag (within 
+#   a maximum allowed lag) that yields the highest correlation with a 
+#   reference series (main_kld). Returns a tibble containing the maximum 
+#   lag and corresponding correlation strength for each industry-question pair. 
+# Arguments:
+#  - tbl                : tibble containing industry_code, question variables, and dates
+#  - question_vars      : vector of column names for question variables
+#  - max_lag            : maximum lag (in periods) to consider when calculating correlations
+#  - only_negative_lag  : if TRUE, only considers non-positive lags (indicator leading main)
+#  - C00_KLD            : tibble containing main_kld series (joined by date)
+# Returns:
+# - tibble with columns:
+#    - industry_code
+#    - question_code
+#    - data
+#    - max_lag (best lag value)
+#    - max_corr (correlation at that lag)
+# ------------------------------------------------------------------------------
+get_max_lag_matrix <- function(tbl, question_vars, max_lag, only_negative_lag = TRUE, C00_KLD) {
   # returns matrix containing industry_code, question, data, max_lag, max_corr
   # (data: column containing dfs with date, main_value, value) (not sure if needing this)
   
@@ -325,8 +333,23 @@ get_max_lag_matrix <- function(tbl, question_vars, max_lag, only_negative_lag = 
     ungroup()
 }
 
-# function receiving df full of markov probs, cluster_df containing industry_code, question_code
-# and date column (can be taken from C00 eg)
+# ------------------------------------------------------------------------------
+# Function : average_cluster_probabilities
+# Purpose : 
+#   Computes the average Markov regime probabilities across a cluster of 
+#   industry-question pairs, producing a single probability series that 
+#   represents the cluster’s behavior.  
+# Arguments:
+#  - probs_df   : tibble containing Markov probabilities with columns 
+#                 (date, industry_code, question_code, prob)
+#  - cluster_df : tibble containing industry_code and question_code pairs 
+#                 defining the cluster
+#  - date       : vector of dates to align the averaged probabilities with
+# Returns:
+# - tibble with columns:
+#    - date
+#    - prob (average probability across all cluster members)
+# ------------------------------------------------------------------------------
 average_cluster_probabilities <- function(probs_df, cluster_df, date) {
   cluster_prob_df <- data.frame(date = date)
   cluster_prob_df$prob <- 0
