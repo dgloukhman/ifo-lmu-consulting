@@ -1,5 +1,10 @@
+# Load ggplot2 for plotting
 library(ggplot2)
 
+#' Plot adjusted R-squared for full vs. reduced models
+#'
+#' @param data A dataframe containing the adjusted R-squared values.
+#' @return A ggplot object.
 adj_r2_plot_f <- function(data) {
     p <- ggplot(data, aes(x = code)) +
         # Reduced model line
@@ -38,7 +43,10 @@ adj_r2_plot_f <- function(data) {
     p
 }
 
-
+#' Plot a time series
+#'
+#' @param data A dataframe containing the time series data.
+#' @return A ggplot object.
 plot_ts <- function(data) {
     ggplot(data = data, aes(x = date, y = KLD, color = industry)) +
         geom_line() + # This creates the line plot
@@ -51,7 +59,12 @@ plot_ts <- function(data) {
         theme_minimal() # A clean theme for the plot
 }
 
-
+#' Plot two time series against each other
+#'
+#' @param ifo_tbl The input tibble with ifo data.
+#' @param ts_1 The first time series.
+#' @param ts_2 The second time series.
+#' @return A ggplot object.
 plot_cluster_with_main <- function(ifo_tbl, ts_1, ts_2) {
     # Pivot to long format for easier filtering
     data <- ifo_tbl %>%
@@ -85,7 +98,10 @@ plot_cluster_with_main <- function(ifo_tbl, ts_1, ts_2) {
     p
 }
 
-
+#' Plot the distribution of Granger causality by question
+#'
+#' @param data A dataframe containing the Granger causality results.
+#' @return A ggplot object.
 plot_distribution_of_gc_questions <- function(data) {
     df <- data %>%
         filter(industry_code != "date") %>%

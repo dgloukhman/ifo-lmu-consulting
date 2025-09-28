@@ -1,72 +1,33 @@
-source("utils/setup_packages.R")
-install_packages_from_file()
-source(here("utils", "load_data.R"))
 source(here("Forecasting", "helper.R"))
 
+# Load and preprocess ifo data
+ifo_tbl <- load_and_preprocess_data(UNIVARIATE_LEVELS)
 
-# Which ts predicts the main index the best
-SIGNIFICANCE_LEVEL <- 0.05
-LEVELS <- c(0, 2,3)
-
-
-ifo_tbl <- read_ifo_data() %>%
-  preprocess_ifo_data() %>%
-  filter(level %in% LEVELS)
-
-
-
+# Extract the main KLD time series and filter it out from the main table
 main_kld <- get_ts_by_question("KLD", ifo_tbl) %>%
   select("C0000000") %>%
   pull("C0000000")
 ifo_tbl <- ifo_tbl %>% filter(industry_code != "C0000000")
 
+# Get the questions to be used in the analysis
 questions <- setdiff(names(ifo_tbl), c("date", "industry_code", "level"))
 
-
-
-predictive_test_vec <- function(x, y, lag = 1, significance_level = 0.05, type = "granger") {
-  # Test function to perform Granger causality test for two time series
-
-  # Create a data frame with the dependent variable and lagged predictors
-  # The model is y_t ~ y_{t-1} + ... + y_{t-lag} + x_{t} + ... + x_{t-lag}
-
-  y_lags <- create_lagged_df(tibble(y), lag) %>% dplyr::select(-1)
-  x_lags <- create_lagged_df(tibble(x), lag)
-  reduced_data <- cbind(y_t = y, y_lags)
-
-  if (type == "granger") {
-    model_data <- cbind(y_t = y, y_lags, x_lags)
-    y_only_model <- lm(y_t ~ ., data = na.omit(as.data.frame(reduced_data)))
-    full_model <- lm(y_t ~ ., data = na.omit(as.data.frame(model_data)))
-  } else {
-    # Fit the model on non-missing data
-    model_data <- cbind(y_t = y, x_lags)
-    y_only_model <- lm(y_t ~ 1, data = na.omit(as.data.frame(reduced_data)))
-    full_model <- lm(y_t ~ ., data = na.omit(as.data.frame(model_data)))
-  }
-
-  a <- anova(y_only_model, full_model)
-
-  tibble(
-    weight = 0,
-    causal = a$`Pr(>F)`[2] < significance_level,
-    full_model_adj_r2 = summary(full_model)$adj.r.squared,
-    y_only_model_adj_r2 = summary(y_only_model)$adj.r.squared,
-    diff_adj_r2 = summary(full_model)$adj.r.squared - summary(y_only_model)$adj.r.squared
-  )
-  # list(y_only_model, full_model, a)
-}
-
+#' Main function to perform Granger causality analysis
+#'
+#' This function applies the predictive test to all time series.
+#'
+#' @param forecast_type The type of forecast to perform.
+#' @return A tibble with the results of the Granger causality test.
 granger_main <- function(forecast_type = "forecast") {
   # main logic to apply the predictive test function an all time series
   y <- main_kld
 
   results <- purrr::map_dfr(questions, function(q) {
     data <- get_ts_by_question(q, ifo_tbl)
-    vars <- expand_grid(industry_code = names(data), lag = 1:6)
+    vars <- expand_grid(industry_code = names(data), lag = 1:MAX_LAG)
 
     purrr::pmap_dfr(vars, function(industry_code, lag, .progress = TRUE) {
-      res <- predictive_test_vec(select(tibble(data), industry_code), y, lag = lag, significance_level = SIGNIFICANCE_LEVEL, type = forecast_type)
+      res <- perform_granger_test(select(tibble(data), industry_code), y, lag = lag, significance_level = SIGNIFICANCE_LEVEL, type = forecast_type)
       tibble(question = q, industry_code = industry_code, causal = res$causal, lag = lag, full_model_adj_r2 = res$full_model_adj_r2, y_only_model_adj_r2 = res$y_only_model_adj_r2, diff_adj_r2 = res$diff_adj_r2)
     })
   })
@@ -75,13 +36,13 @@ granger_main <- function(forecast_type = "forecast") {
   return(results)
 }
 
+# Perform Granger causality analysis
 granger_tbl <- granger_main(forecast_type = "granger")
 
-tmp <- granger_tbl %>%
+# Process the results
+univariate_granger_results <- granger_tbl %>%
   group_by(industry_code) %>%
   filter(causal == TRUE & full_model_adj_r2 == max(full_model_adj_r2)) %>%
   ungroup() %>%
   mutate(question = q_map[question], code = industry_code, industry_code = i_map[industry_code]) %>%
   drop_na()
-
-# granger_tbl %>% plot_weight()

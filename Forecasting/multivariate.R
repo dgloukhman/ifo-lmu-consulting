@@ -1,24 +1,23 @@
-source("utils/setup_packages.R")
-install_packages_from_file()
-source(here("utils", "load_data.R"))
+# Load required packages and data
 source(here("Forecasting", "helper.R"))
 
+# Load and preprocess ifo data
+ifo_tbl <- load_and_preprocess_data(LEVELS)
 
-
-SIGNIFICANCE_LEVEL <- 0.05
-LEVELS <- c(0, 2)
-
-
-ifo_tbl <- read_ifo_data() %>%
-  preprocess_ifo_data() %>%
-  filter(level %in% LEVELS)
-
+# Extract the main KLD time series and filter it out from the main table
 main_kld <- get_ts_by_question("KLD", ifo_tbl) %>% select("C0000000") %>% pull("C0000000")
 ifo_tbl <- ifo_tbl %>% filter(industry_code != "C0000000")
 
+# Get unique industry codes and questions
 industry_codes <- unique(ifo_tbl$industry_code)
 questions <- setdiff(names(ifo_tbl), c("date", "industry_code", "level"))
 
+#' Perform multivariate Granger causality analysis
+#'
+#' This function applies a predictive test to all time series.
+#'
+#' @param ifo_tbl The input tibble with ifo data.
+#' @return A tibble with the results of the Granger causality test.
 multivariate_granger_main <- function(ifo_tbl) {
   # main logic to apply the predictive test function an all time series
   y <- main_kld
@@ -27,7 +26,7 @@ multivariate_granger_main <- function(ifo_tbl) {
     data <- ifo_tbl %>% filter(industry_code == q)
     data <- tibble(data)
 
-    vars <- expand_grid(industry_code = q, lag = 1:6)
+    vars <- expand_grid(industry_code = q, lag = 1:MAX_LAG)
 
 
     purrr::pmap_dfr(vars, function(industry_code, lag, .progress = TRUE) {
@@ -59,11 +58,12 @@ multivariate_granger_main <- function(ifo_tbl) {
   return(results)
 }
 
-tmp <- ifo_tbl %>% multivariate_granger_main() 
+# Run the multivariate Granger causality analysis
+multivariate_granger_results <- ifo_tbl %>% multivariate_granger_main() 
 
-tmp <- tmp %>%
+# Filter and process the results
+multivariate_granger_results <- multivariate_granger_results %>%
     group_by(industry_code) %>%
   filter(causal == TRUE & full_model_adj_r2 == max(full_model_adj_r2)) %>%
   ungroup() %>%
   mutate( industry = i_map[industry_code])
-
