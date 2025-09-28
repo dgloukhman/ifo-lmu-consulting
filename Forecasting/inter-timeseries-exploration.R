@@ -1,20 +1,26 @@
-source("utils/setup_packages.R")
-install_packages_from_file()
-source(here("utils", "load_data.R"))
+# This analysis explores inter-time series relationships using Granger causality tests.
+# It did not end up in the final report but is kept for reference.
 
+source(here("Forecasting", "helper.R"))
 
+# Define the level for the analysis
 LEVEL <- 3
 
-ifo_tbl <- read_ifo_data() %>%
-  preprocess_ifo_data() %>%
-  filter(level == LEVEL)
+# Load and preprocess the ifo data
+ifo_tbl <- load_and_preprocess_data(LEVEL)
 
+# Create a stationary time series for KLD
 kld_tsbl <- ifo_tbl %>%
   select(date, industry_code, KLD) %>%
   pivot_wider(names_from = industry_code, values_from = KLD) %>%
   as_tsibble(index = date) %>%
   mutate(across(where(is.numeric), difference)) # make kld stationary
 
+#' Create a Granger causality p-value matrix
+#'
+#' @param tsbl The input tsibble.
+#' @param max_lag The maximum lag to consider.
+#' @return A matrix with p-values.
 granger_pval_matrix <- function(tsbl, max_lag = 1) {
   vars <- names(tsbl)[names(tsbl) != "date"]
   n <- length(vars)
@@ -46,10 +52,13 @@ granger_pval_matrix <- function(tsbl, max_lag = 1) {
   return(pval_mat)
 }
 
-
+#' Plot a heatmap of the Granger causality matrix
+#'
+#' @param df The input dataframe (matrix).
+#' @param lag The lag used for the analysis.
 plot_heatmap <- function(df, lag) {
   # Plot heatmap
-  title = paste0("Granger causality - Level: ", LEVEL, ", Lag: ", lag)
+  title <- paste0("Granger causality - Level: ", LEVEL, ", Lag: ", lag)
   jpeg(
     paste0("plots/granger_level_", LEVEL, "_lag_", lag, ".jpg"),
     width = 800,
@@ -64,7 +73,7 @@ plot_heatmap <- function(df, lag) {
     axes = FALSE,
     xlab = "",
     ylab = "",
-    col = c('red', 'green')
+    col = c("red", "green")
   )
 
   # Add column names on x-axis
@@ -75,13 +84,15 @@ plot_heatmap <- function(df, lag) {
   dev.off()
 }
 
+# Define the lags to test
 lags <- 0:3
 
-
+# Loop through the lags and create heatmaps
 for (lag in lags) {
   pval_matrix <- granger_pval_matrix(kld_tsbl, max_lag = lag)
   plot_heatmap(pval_matrix, lag)
 }
 
+# Calculate the number of Granger causes for a specific lag
 pval_matrix <- granger_pval_matrix(kld_tsbl, max_lag = 1)
 granger_causes <- rowSums(pval_matrix)
