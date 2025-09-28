@@ -18,7 +18,7 @@ questions <- setdiff(names(ifo_tbl), c("date", "industry_code", "level"))
 #'
 #' @param forecast_type The type of forecast to perform.
 #' @return A tibble with the results of the Granger causality test.
-granger_main <- function(forecast_type = "forecast") {
+granger_main <- function(forecast_type = "simple") {
   # main logic to apply the predictive test function an all time series
   y <- main_kld
 
@@ -27,7 +27,7 @@ granger_main <- function(forecast_type = "forecast") {
     vars <- expand_grid(industry_code = names(data), lag = 1:MAX_LAG)
 
     purrr::pmap_dfr(vars, function(industry_code, lag, .progress = TRUE) {
-      res <- perform_granger_test(select(tibble(data), industry_code), y, lag = lag, significance_level = SIGNIFICANCE_LEVEL, type = forecast_type)
+      res <- perform_granger_test(select(tibble(data), industry_code), y, lag = lag, significance_level = SIGNIFICANCE_LEVEL, forecast_type = forecast_type)
       tibble(question = q, industry_code = industry_code, causal = res$causal, lag = lag, full_model_adj_r2 = res$full_model_adj_r2, y_only_model_adj_r2 = res$y_only_model_adj_r2, diff_adj_r2 = res$diff_adj_r2)
     })
   })

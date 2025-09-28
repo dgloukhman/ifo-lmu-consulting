@@ -41,7 +41,7 @@ create_lagged_df <- function(data, max_lag, exclude_lag_until = 0) {
   lags <- (exclude_lag_until + 1):max_lag
   for (lag in lags) {
     lagged_data <- lagged_data %>%
-      mutate(across(cols, \(x) dplyr::lag(x, n = lag), .names = "{col}_lag_{lag}"))
+      mutate(across(all_of(cols), \(x) dplyr::lag(x, n = lag), .names = "{col}_lag_{lag}"))
   }
   return(lagged_data)
 }
@@ -56,8 +56,13 @@ create_lagged_df <- function(data, max_lag, exclude_lag_until = 0) {
 #' @param significance_level The significance level for the test.
 #' @param type The type of test to perform ("granger" or other).
 #' @return A tibble with the test results.
-perform_univariate_granger_test <- function(x, y, lag = 1, significance_level = 0.05) {
+perform_granger_test <- function(x, y, lag = 1, significance_level = 0.05, forecast_type = "simple") {
   y_lags <- create_lagged_df(tibble(y), lag) %>% dplyr::select(-1)
+  if (forecast_type == "instantaneous") {
+    x_lags <- create_lagged_df(tibble(x), lag)
+  } else {
+    x_lags <- create_lagged_df(tibble(x), lag) %>% select(-all_of(names(tibble(x))))
+  }
   x_lags <- create_lagged_df(tibble(x), lag)
   reduced_data <- cbind(y_t = y, y_lags)
 
