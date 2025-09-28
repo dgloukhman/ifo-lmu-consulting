@@ -1,6 +1,4 @@
-# Main Script, where gathering all Turning Points (TP) Stuff
-# Will repeat this script with three digits in a separate file
-
+# Main Script for turning points 
 # function to install and load missing packages for project in general 
 library(here)
 source(here("utils","setup_packages.R"))
@@ -8,6 +6,7 @@ source(here("utils","setup_packages.R"))
 install_packages_from_file()
 
 source(here("utils","load_data.R"))
+source(here("TurningPointIndications","turningpoint_utils.R"))
 
 
 # load in data and preprocess
@@ -19,17 +18,16 @@ ifo_tbl <- preprocess_ifo_data(ifo_tbl)
 question_df <- read.csv(paste0(data_path, "/questions_codes_titles.csv"))
 industries_df <- read.csv(paste0(data_path, "/industries_codes_titles.csv"))
 
-# quickly backup current tp_df 
-#tp_df_backup_twodigits <- tp_df
-#eval_df_backup_twodigits <- eval_df
+question_vars <- ifo_tbl %>% select (-date, -industry_code, -level) %>% colnames() 
 
 # ------------------------------------------------------------------------------
 # Bry-Boschan TP of main series
 
 # subset to main aggregate (whole manufacturing)
 C00_subset <- subset(ifo_tbl, ifo_tbl$industry_code == 'C0000000')
+C00_KLD <- C00_subset$KLD
 
-# apply function and extract expansion and contraction points)
+# apply function and extract expansion and contraction points of main series 
 bb_turning_points <- get_bb_turning_points(
   values = C00_subset$KLD,
   dates = C00_subset$date
@@ -38,7 +36,7 @@ main_exp_bb <- bb_turning_points$tp_expansion
 main_contr_bb <- bb_turning_points$tp_contraction
 
 
-# create df with turning points to plot them along the climate graph
+# create df with BB turning points to plot them along main series 
 turning_points <- C00_subset %>%
   mutate(
     phase = case_when(
@@ -47,10 +45,9 @@ turning_points <- C00_subset %>%
       TRUE ~ NA_character_
     )
   ) %>%
-  filter(date %in% c(tp_exp, tp_contr)) %>%
+  filter(date %in% c(main_exp_bb, main_contr_bb)) %>%
   select(date, KLD, phase)
 
-# Plot climate graph with turning points along the line
 ggplot(C00_subset, aes(x = date, y = KLD)) +
   geom_line() +
   geom_point(
@@ -65,17 +62,18 @@ ggplot(C00_subset, aes(x = date, y = KLD)) +
     x = "",
     y = "Manufacturing Business Climate",
     color = "Bry-Boschan Turning Points"
-  )
+  ) +
 theme_minimal()
 
-
+#===============================================================================
+# Using Markobv Regime Switching to get (realtime) turning points of subseries 
 # ------------------------------------------------------------------------------
-# Get Markov probabilities of all subseries 
+# Get Markov probabilities of all subseries (two-digits)
 
 # subset to two-digits
 ifo_subset_two_digits <- ifo_tbl %>% filter(level == 1) %>% select(-level)
 
-# pivot to get just one value per row (appending industries & questions rowwise)
+# pivot 
 ifo_long <- ifo_subset_two_digits %>%
   pivot_longer(
     cols = -c(date, industry_code),
@@ -83,9 +81,7 @@ ifo_long <- ifo_subset_two_digits %>%
     values_to = "value"
   )
 
-lus_subset <- ifo_tbl %>% filter(industry_code == "C2400000") 
-plot(lus_subset$date, lus_subset$LUS, type ="l")
-
+ifo_probs_two_digit <- read.csv('/Users/jakobfreytag/Desktop/R Directionaries/ifo_probs_backup/ifo_probs_two_digits.csv')
 # group by by industries & questions and get markov probabilities (takes a while)
 #ifo_probs_two_digit <- ifo_long %>%
 #  group_by(industry_code, question_code) %>%
@@ -93,13 +89,12 @@ plot(lus_subset$date, lus_subset$LUS, type ="l")
 #  mutate(prob = get_markov_probabilities(value, date)) %>%
 #  ungroup()
 
-# LUS is the only anti-cyclical series, its upper-regime is corresponding to contraction
+
+# LUS is the only anti-cyclical question, its upper-regime is corresponding to contraction,
 # thus we take counterprobabilities to 'swap' regimes
 ifo_probs_two_digit <- ifo_probs_two_digit %>%
   mutate(prob = ifelse(question_code == "LUS", 1 - prob, prob))
 
-# upper entries for C10000000 should be 1 
-ifo_probs_two_digit %>% filter(question_code == "LUS")
 # ------------------------------------------------------------------------------
 # Mark turning points according to Markov probabilities 
 
@@ -131,8 +126,9 @@ eval_df <- evaluate_tp_df(tp_df,
 
 eval_df %>% arrange(desc(f1_score)) 
 # -> Rather bad, there is not really a single time series standing out as predictive
+
 # Probably also due to nature of Markov Points in comparison to Bry-Boschan points,
-# so allowing for a little lag of three months after Bry-Boschan turning points
+# so allowing for a little lag of three months after Bry-Boschan turning points:
 eval_df <- evaluate_tp_df(tp_df,
                           main_exp_bb,
                           main_contr_bb,
@@ -148,13 +144,16 @@ eval_df %>% arrange(desc(f1_score))
 
 #-------------------------------------------------------------------------------
 # Grouping by highest lag correlation
+# getting c00 ready
+C00_kld_df <- C00_subset %>% select(date, KLD) %>% rename(main_kld = KLD)
 
 # Retrieving lag value with highest value of ccf 
 ts_max_lag_matrix  <- get_max_lag_matrix(
   tbl = ifo_subset_two_digits,
   question_vars = question_vars,
   max_lag = 6,
-  only_negative_lag = FALSE
+  only_negative_lag = FALSE,
+  C00_KLD = C00_kld_df
 )
 
 # look at a small summary
@@ -166,65 +165,12 @@ ts_max_lag_matrix %>%
   )
 
 #-------------------------------------------------------------------------------
-# Taking mildly lagging group 
+# taking group with roughly composite moving characteristics
 cluster_df <- ts_max_lag_matrix %>% 
-  filter(max_lag %in% c(-1,-2,-3)) 
+  filter(max_lag %in% c(1,0,-1)) 
 
 # Averaging Probabilities of cluster
-cluster_states_df <- average_cluster_probabilities(ifo_probs_two_digit, cluster_df, C00_KLD$date)
-
-cluster_states_df <- mark_turningpoints(cluster_states_df, 
-                                        lower = 0.33,
-                                        upper = 0.66)
-
-cluster_exp_tp <- cluster_states_df %>% filter(phase == "expansion", turning_point == TRUE) %>% pull(date)
-cluster_contr_tp <- cluster_states_df %>% filter(phase == "contraction", turning_point == TRUE) %>% pull(date)
-
-evaluate_indicator(main_exp_bb, cluster_exp_tp, c(-3,6))
-evaluate_indicator(main_contr_bb, cluster_contr_tp, c(-3,6))
-cluster_exp_tp
-main_exp_bb
-cluster_contr_tp
-main_contr_bb
-
-# The turning points of the cluster do roughly correspond to the main turning points,
-# however, usually lagging half a year up to two years behind 
-
-#-------------------------------------------------------------------------------
-# Taking stronger lagging group 
-cluster_df <- ts_max_lag_matrix %>% 
-  filter(max_lag %in% c(-4,-5,-6)) 
-cluster_states_df <- average_cluster_probabilities(ifo_probs_two_digit, cluster_df, C00_KLD$date)
-
-cluster_states_df <- mark_turningpoints(cluster_states_df, 
-                                        lower = 0.33,
-                                        upper = 0.66)
-
-cluster_exp_tp <- cluster_states_df %>% filter(phase == "expansion", turning_point == TRUE) %>% pull(date)
-cluster_contr_tp <- cluster_states_df %>% filter(phase == "contraction", turning_point == TRUE) %>% pull(date)
-
-evaluate_indicator(main_exp_bb, cluster_exp_tp, c(-3,6))
-evaluate_indicator(main_contr_bb, cluster_contr_tp, c(-3,6))
-cluster_exp_tp
-main_exp_bb
-cluster_contr_tp
-main_contr_bb
-# much more noisy compared to the less lagging group and also behind by a few years
-
-#===============================================================================
-# Opposite signal - Indicating turning points of opposite phase
-#-------------------------------------------------------------------------------
-# Idea: 'By now all series of this group reached the phase with their Markov TP
-#.        -> Probably already over soon' 
-#.    - So we switch regimes seeing if we might get a consistent lead_time for opposite TP 
-
-#-------------------------------------------------------------------------------
-# Taking mildly lagging group again
-cluster_df <- ts_max_lag_matrix %>% 
-  filter(max_lag %in% c(2,1,0,-1,-2)) 
-cluster_df <- ts_max_lag_matrix
-# Averaging Probabilities of cluster
-cluster_states_df <- average_cluster_probabilities(ifo_probs_two_digit, cluster_df, C00_KLD$date)
+cluster_states_df <- average_cluster_probabilities(ifo_probs_two_digit, cluster_df, C00_kld_df$date)
 
 cluster_states_df <- mark_turningpoints(cluster_states_df, 
                                         lower = 0.33,
@@ -235,10 +181,55 @@ cluster_contr_tp <- cluster_states_df %>% filter(phase == "contraction", turning
 
 evaluate_indicator(main_contr_bb, cluster_exp_tp, c(0,12))
 evaluate_indicator(main_exp_bb, cluster_contr_tp, c(0,12))
+
 cluster_exp_tp
-main_contr_bb
 cluster_contr_tp
 main_exp_bb
+main_contr_bb
 
-# 
-#-------------------------------------------------------------------------------
+# Plotting cluster turning points alongside C00 KLD with main turning points 
+# little helper df
+tp_plot_df <- bind_rows(
+  tibble(date = as.Date(cluster_exp_tp),  phase = "expansion",   type = "Markov Switching"),
+  tibble(date = as.Date(cluster_contr_tp), phase = "contraction", type = "Markov Switching"),
+  tibble(date = as.Date(main_exp_bb),      phase = "expansion",   type = "Bry-Boschan"),
+  tibble(date = as.Date(main_contr_bb),    phase = "contraction", type = "Bry-Boschan")
+) %>%
+  # Join with your KLD values to get y-coordinate for plotting
+  left_join(C00_subset %>% select(date, KLD), by = "date")
+
+# plot
+ggplot(C00_subset, aes(x = date, y = KLD)) +
+  geom_line() +
+  geom_point(
+    data = tp_plot_df,
+    aes(x = date, y = KLD, color = interaction(phase, type)),
+    size = 2
+  ) +
+  scale_color_manual(
+    values = c(
+      "expansion.Bry-Boschan" = "#4CBB17",
+      "contraction.Bry-Boschan" = "#FF2400",
+      "expansion.Markov Switching" = "#708238",
+      "contraction.Markov Switching" = "#7C0A02"
+    ),
+    labels = c(
+      "expansion.Bry-Boschan" = "Main BB-Expansion",
+      "contraction.Bry-Boschan" = "Main BB-Contraction",
+      "expansion.Markov Switching" = "Group Markov Expansion",
+      "contraction.Markov Switching" = "Group Markov Contraction"
+    ),
+    name = "Turning Points"
+  ) +
+  labs(
+    x = "",
+    y = "Main Index"
+  ) +
+  theme_minimal()
+# The turning points of the cluster do roughly correspond to the main turning points,
+# however, usually lagging half a year up to two years behind 
+
+
+
+
+ 

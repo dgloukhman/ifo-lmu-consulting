@@ -9,8 +9,8 @@ source(here("utils", "load_data.R"))
 # load in data and preprocess
 data_path <- here("Data")
 data_path_dict <- here("Data")
-ifo_tbl <- read_ifo_data(data_path) %>%
-  preprocess_ifo_data(ifo_tbl)
+ifo_tbl <- read_ifo_data(data_path) 
+ifo_tbl <- preprocess_ifo_data(ifo_tbl)
 
 # define function to return BB turning points
 get_bb_turning_points <- function(values, dates, mincycle = 24, minphase = 6) {
@@ -33,8 +33,8 @@ get_bb_turning_points <- function(values, dates, mincycle = 24, minphase = 6) {
   bb <- BCDating::BBQ(ts_data, mincycle = mincycle, minphase = minphase)
 
   # extract months of identified peaks and throughs
-  tp_exp <- C00_subset$date[bb@peaks]
-  tp_contr <- C00_subset$date[bb@troughs]
+  tp_exp <- C00_subset$date[bb@troughs]
+  tp_contr <- C00_subset$date[bb@peaks]
 
   return(list(tp_expansion = tp_exp, tp_contraction = tp_contr))
 }
@@ -64,23 +64,25 @@ turning_points <- C00_subset %>%
   select(date, KLD, phase)
 
 # Plot climate graph with turning points along the line
+pdf("BB_main.pdf", width = 6, height = 3)
 ggplot(C00_subset, aes(x = date, y = KLD)) +
   geom_line() +
   geom_point(
     data = turning_points,
     aes(x = date, y = KLD, color = phase),
-    size = 2
+    size = 2,
+    show.legend = FALSE
   ) +
   scale_color_manual(
     values = c("expansion" = "darkgreen", "contraction" = "darkred")
   ) +
   labs(
     x = "",
-    y = "Manufacturing Business Climate",
+    y = "Main Series Values",
     color = "Bry-Boschan Turning Points"
-  )
+  ) +
 theme_minimal()
-
+dev.off()
 
 #--------------------- Adding/Comparing with signals from Markov Switching -------------
 
