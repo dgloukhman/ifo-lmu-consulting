@@ -8,6 +8,7 @@ furrr
 future
 future.apply
 here
+lmtest
 mpmi
 MSwM
 readxl
