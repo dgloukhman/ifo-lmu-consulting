@@ -208,7 +208,7 @@ dcor_tbl_full_peak %>%
   theme_minimal() +
   labs(
     title = "Peak Distance Correlation distribution by Question",
-    x = "Indicator (Question)",
+    x = "Question",
     y = "Correlation"
   )
 ```
@@ -220,35 +220,35 @@ Plot: Distribution by Sectors
 
 ```{r Distribution by Sector, warning=FALSE, echo=FALSE}
 dcor_tbl_full %>% 
-  filter(level > 0, 
+  filter(level %in% c(1:3), 
          difference == 0,
          lag %in% c(-6:6)) %>%
   group_by(level, sector) %>%
   summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
-  ggplot(aes(x = factor(sector), y = mean_corr)) +
+  ggplot(aes(x = sector, y = mean_corr)) +
   # facet_wrap(~ indicator) +
   geom_boxplot(outlier.size = 1, outlier.colour = "red") +
   scale_y_continuous(limits = c(0, 1)) +
   theme_minimal() +
   labs(
-    title = "Average Distance Correlation distribution by Sector",
+    title = "Average Distance Correlation Distribution by Sector",
     x = "Level",
     y = "Correlation"
   )
 
 
 dcor_tbl_full_peak %>% 
-  filter(level > 0, 
+  filter(level %in% c(1:3), 
          difference == 0) %>%
   group_by(level, sector) %>%
   summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
-  ggplot(aes(x = factor(level), y = mean_corr)) +
+  ggplot(aes(x = sector, y = mean_corr)) +
   # facet_wrap(~ indicator) +
   geom_boxplot(outlier.size = 1, outlier.colour = "red") +
   scale_y_continuous(limits = c(0, 1)) +
   theme_minimal() +
   labs(
-    title = "Average Peak Distance Correlation distribution by Level",
+    title = "Average Peak Distance Correlation Distribution by Level",
     x = "Level",
     y = "Correlation"
   )
@@ -266,9 +266,9 @@ dcor_tbl_full %>%
   filter(level > 0, 
          difference == 0,
          lag %in% c(-6:6)) %>%
-  group_by(sector, industry_code, indicator) %>%
+  group_by(sector, industry_code, indicator, level) %>%
   summarise(mean_corr = mean(corr, na.rm = TRUE), .groups = "drop") %>%
-  ggplot(aes(x = sector, y = mean_corr)) +
+  ggplot(aes(x = factor(level), y = mean_corr)) +
   # facet_wrap(~ indicator) +
   geom_boxplot(outlier.size = 1, outlier.colour = "red") +
   scale_y_continuous(limits = c(0, 1)) +
@@ -283,7 +283,7 @@ dcor_tbl_full %>%
 dcor_tbl_full_peak %>% 
   filter(level > 0, 
          difference == 0) %>%
-  ggplot(aes(x = sector, y = corr)) +
+  ggplot(aes(x = factor(level), y = corr)) +
   # facet_wrap(~ indicator) +
   geom_boxplot(outlier.size = 1, outlier.colour = "red") +
   scale_y_continuous(limits = c(0, 1)) +
@@ -538,7 +538,7 @@ dcor_tbl_full_peak %>%
   theme_minimal() +
   labs(
     title = "Top 30 - Peak Distance Correlation distribution by Question",
-    x = "Indicator (Question)",
+    x = "Question",
     y = "Correlation"
   )
 ```
@@ -737,7 +737,7 @@ score_tbl_roll %>%
   theme_minimal() +
   labs(
     title = "Score by Peak Correlation",
-    x = "Sector",
+    x = "Level",
     y = "Variance"
   )
 
@@ -764,20 +764,9 @@ score_tbl_roll %>%                       # your 5‑col table
        x = "k (top k by score)", y = "Score")
 ```
 
-- Plot shows the avg. and minimum scores of the Top-k sets
-- After the set of top 25 industries the avg and minimum score drop a lot faster
-- The bottom 25 industries have significant lower score values
-- Based on plot 5, and 25 are good set sizes for further analysis both of 
-top and bottom industries
 
 
 #### Set Analysis
-
-- Identification of interesting sets for further research
-- Focus on points of view
-  - Sets that capture the full picture well
-  - Sets that allows for early predictions
-  - Level 4 and 5
 
 ##### Full Picture Analysis
 
@@ -1557,7 +1546,7 @@ score_tbl_roll %>%
   theme_minimal() +
   labs(
     title = "Score by Peak Correlation",
-    x = "Sector",
+    x = "Level",
     y = "Variance"
   )
 
@@ -1724,13 +1713,13 @@ X <- data %>%
 
 fit_net <- glmnet(X, y,
                   standardize = FALSE,
-                  intercept = FALSE,
+                  intercept = TRUE,
                   alpha = 0.8)
 print(fit_net)
 plot(fit_net)
 plot(fit_net, xvar = "dev")
 
-coefs_net <- coef(fit_net, s = 180)
+coefs_net <- coef(fit_net, s = 160)
 coef_net <- rownames(coefs_net)[which(coefs_net != 0)] %>%
   str_sub(1,8)
 coef_net
@@ -1776,7 +1765,7 @@ fit_lm <- lm(y ~ X)
 
 summary.lm(fit_lm)
 
-r2_l1 <- summary(fit_lm)$adj.r.squared
+r2_l1 <- summary(fit_lm)$r.squared
 
 results <- results %>% 
   mutate(fitted_l1 = fitted(fit_lm))
@@ -1797,7 +1786,9 @@ fit_lm <- lm(y ~ X)
 
 summary.lm(fit_lm)
 
-r2_pred <- summary(fit_lm)$adj.r.squared
+top05_pred
+
+r2_pred <- summary(fit_lm)$r.squared
 
 results <- results %>%
   mutate(fitted_score = fitted(fit_lm))
@@ -1818,7 +1809,7 @@ fit_lm <- lm(y ~ X)
 
 summary.lm(fit_lm)
 
-r2_bench <- summary(fit_lm)$adj.r.squared
+r2_bench <- summary(fit_lm)$r.squared
 
 results <- results %>%
   mutate(fitted_benchmark = fitted(fit_lm))
@@ -1910,7 +1901,7 @@ score_draw <- function(codes_draw) {
 
   list(
     codes   = codes_draw,
-    r2_adj  = summary(fit)$adj.r.squared,
+    r2      = summary(fit)$r.squared,
     rmse    = sqrt(mean((y - fitted(fit))^2))
   )
 }
@@ -1926,7 +1917,7 @@ res <- future_map(
 results_rnd <- tibble(
   draw   = seq_along(res),
   codes  = lapply(res, `[[`, "codes"),
-  r2_adj = vapply(res, `[[`, numeric(1), "r2_adj"),
+  r2     = vapply(res, `[[`, numeric(1), "r2"),
   rmse   = vapply(res, `[[`, numeric(1), "rmse")
 )
 
@@ -1950,7 +1941,7 @@ color_map <- c(
 )
 
 # Boxplot + points (adjusted R²)
-ggplot(results_rnd, aes(x = "", y = r2_adj)) +
+ggplot(results_rnd, aes(x = "", y = r2)) +
   geom_boxplot(fill = NA, outlier.colour = "red") +
   geom_point(data = r2_points, aes(x = "", y = value, color = model),
              size = 3, alpha = 0.95, position = position_jitter(width = 0.03, height = 0)) +
@@ -1960,9 +1951,14 @@ ggplot(results_rnd, aes(x = "", y = r2_adj)) +
                      name   = legend_title) +
   labs(
     title = "Distribution of adjusted R² across random 5-code subsets",
-    x = NULL, y = expression(Adj.~R^2)
+    x = NULL, y = expression(~R^2)
   ) +
   theme_minimal()
+
+results_rnd %>%
+  arrange(desc(r2)) %>%
+  slice_head(n = 3) %>%
+  mutate(codes = map_chr(codes, ~ paste(.x, collapse = ", ")))
 ```
 
 
@@ -2015,7 +2011,7 @@ X <- data %>%
 
 fit_net <- glmnet(X, y,
                   standardize = FALSE,
-                  intercept = FALSE,
+                  intercept = TRUE,
                   alpha = 0.8)
 print(fit_net)
 plot(fit_net)
@@ -2067,7 +2063,7 @@ fit_lm <- lm(y ~ X)
 
 summary.lm(fit_lm)
 
-r2_l1 <- summary(fit_lm)$adj.r.squared
+r2_l1 <- summary(fit_lm)$r.squared
 
 results <- results %>% 
   mutate(fitted_l1 = fitted(fit_lm))
@@ -2088,7 +2084,9 @@ fit_lm <- lm(y ~ X)
 
 summary.lm(fit_lm)
 
-r2_pred <- summary(fit_lm)$adj.r.squared
+top05_pred_early
+
+r2_pred <- summary(fit_lm)$r.squared
 
 results <- results %>%
   mutate(fitted_score = fitted(fit_lm))
@@ -2109,7 +2107,7 @@ fit_lm <- lm(y ~ X)
 
 summary.lm(fit_lm)
 
-r2_bench <- summary(fit_lm)$adj.r.squared
+r2_bench <- summary(fit_lm)$r.squared
 
 results <- results %>%
   mutate(fitted_benchmark = fitted(fit_lm))
@@ -2201,7 +2199,7 @@ score_draw <- function(codes_draw) {
 
   list(
     codes   = codes_draw,
-    r2_adj  = summary(fit)$adj.r.squared,
+    r2      = summary(fit)$r.squared,
     rmse    = sqrt(mean((y - fitted(fit))^2))
   )
 }
@@ -2217,7 +2215,7 @@ res <- future_map(
 results_rnd <- tibble(
   draw   = seq_along(res),
   codes  = lapply(res, `[[`, "codes"),
-  r2_adj = vapply(res, `[[`, numeric(1), "r2_adj"),
+  r2     = vapply(res, `[[`, numeric(1), "r2"),
   rmse   = vapply(res, `[[`, numeric(1), "rmse")
 )
 
@@ -2241,7 +2239,7 @@ color_map <- c(
 )
 
 # Boxplot + points (adjusted R²)
-ggplot(results_rnd, aes(x = "", y = r2_adj)) +
+ggplot(results_rnd, aes(x = "", y = r2)) +
   geom_boxplot(fill = NA, outlier.colour = "red") +
   geom_point(data = r2_points, aes(x = "", y = value, color = model),
              size = 3, alpha = 0.95, position = position_jitter(width = 0.03, height = 0)) +
@@ -2254,6 +2252,57 @@ ggplot(results_rnd, aes(x = "", y = r2_adj)) +
     x = NULL, y = expression(Adj.~R^2)
   ) +
   theme_minimal()
+
+results_rnd %>%
+  arrange(desc(r2)) %>%
+  slice_head(n = 3) %>%
+  mutate(codes = map_chr(codes, ~ paste(.x, collapse = ", ")))
 ```
 
+## Stationarity
+
+**Stationarity Overall**
+
+```{r}
+adf_tbl_roll %>%
+  filter(level == 2) %>% 
+  group_by(industry_code, date_window_end) %>%
+  summarise(adf_is_stationary = min(as.integer(adf_is_stationary)), .groups = "drop") %>%
+  mutate(adf_is_stationary = as.logical(adf_is_stationary)) %>%
+  ggplot(aes(x = date_window_end, 
+             y = industry_code, 
+             fill = adf_is_stationary)) +
+  geom_tile(color = "white") +
+  scale_fill_manual(values = c("TRUE" = "green", "FALSE" = "red")) +
+  labs(x = "Date Window End", y = "Industry Code", fill = "Stationary") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 6),
+    axis.text.y = element_text(size = 6),
+    axis.ticks = element_blank()
+  ) +
+  scale_x_date(date_breaks = "12 months", date_labels = "%Y-%m") +
+  scale_y_discrete(breaks = function(x) x[seq(1, length(x), by = 2)])
+```
+
+**Stationarity KLD**
+```{r}
+adf_tbl_roll %>%
+  filter(level == 2, indicator == "KLD") %>% 
+  mutate(adf_is_stationary = as.logical(adf_is_stationary)) %>%
+  ggplot(aes(x = date_window_end, 
+             y = industry_code, 
+             fill = adf_is_stationary)) +
+  geom_tile(color = "white") +
+  scale_fill_manual(values = c("TRUE" = "green", "FALSE" = "red")) +
+  labs(x = "Date Window End", y = "Industry Code", fill = "Stationary") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 6),
+    axis.text.y = element_text(size = 6),
+    axis.ticks = element_blank()
+  ) +
+  scale_x_date(date_breaks = "12 months", date_labels = "%Y-%m") +
+  scale_y_discrete(breaks = function(x) x[seq(1, length(x), by = 2)])
+```
 
