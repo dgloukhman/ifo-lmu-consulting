@@ -1,13 +1,12 @@
 # Load required packages and data
+library(here)
 source(here("Forecasting", "helper.R"))
 
 # Load and preprocess ifo data
 ifo_tbl <- load_and_preprocess_data(LEVELS)
 
 # Extract the main KLD time series and filter it out from the main table
-main_kld <- get_ts_by_question("KLD", ifo_tbl) %>%
-  select("C0000000") %>%
-  pull("C0000000")
+main_kld <- get_ts_by_question( ifo_tbl, "KLD") %>% pull("C0000000")
 ifo_tbl <- ifo_tbl %>% filter(industry_code != "C0000000")
 
 # Get unique industry codes and questions
@@ -62,12 +61,4 @@ multivariate_granger_main <- function(ifo_tbl, forecast_type = "simple") {
   return(results)
 }
 
-# Run the multivariate Granger causality analysis
-multivariate_granger_results <- ifo_tbl %>% multivariate_granger_main()
 
-# Filter and process the results
-multivariate_granger_results <- multivariate_granger_results %>%
-  group_by(industry_code) %>%
-  filter(causal == TRUE & full_model_adj_r2 == max(full_model_adj_r2)) %>%
-  ungroup() %>%
-  mutate(industry = i_map[industry_code])

@@ -19,10 +19,10 @@ load_and_preprocess_data <- function(levels) {
 #' @param question The question to filter by (e.g., "KLD").
 #' @param ifo_tbl The input tibble with ifo data.
 #' @return A tsibble with the time series for the given question.
-get_ts_by_question <- function(question = "KLD", ifo_tbl) {
+get_ts_by_question <- function(ifo_tbl, question = "KLD") {
   ifo_tbl %>%
-    select(date, industry_code, question) %>%
-    pivot_wider(names_from = industry_code, values_from = question) %>%
+    select(date, all_of(c(question, "industry_code"))) %>%
+    pivot_wider(names_from = industry_code, values_from = all_of(question)) %>%
     as_tsibble(index = date)
 }
 

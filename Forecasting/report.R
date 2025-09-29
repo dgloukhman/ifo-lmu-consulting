@@ -8,7 +8,11 @@ install_packages_from_file()
 library(here)
 source(here("Forecasting", "helper.R"))
 source(here("Forecasting", "univariate.R"))
+source(here("Forecasting", "multivariate.R"))
 library(ggplot2)
+
+# Output directory for saving plots and tables
+OUTPUT_DIR <- here("output", "Forecasting")
 
 #' Plot adjusted R-squared for full vs. reduced models
 #'
@@ -27,7 +31,7 @@ adj_r2_plot_f <- function(data, forecast_type) {
         geom_line(
             aes(y = y_only_model_adj_r2, color = "Reduced model"),
             group = 1,
-            size = 1
+            linewidth = 1
         ) +
 
         # Full model points
@@ -50,7 +54,7 @@ adj_r2_plot_f <- function(data, forecast_type) {
         )
 
     ggsave(
-        paste0("adj_r2_plot_", forecast_type, ".png"),
+        paste0(OUTPUT_DIR, "/", "adj_r2_plot_", forecast_type, ".png"),
         p,
         width = 16,
         height = 9,
@@ -105,7 +109,7 @@ plot_cluster_with_main <- function(ifo_tbl, ts_1, ts_2, forecast_type) {
         theme_minimal()
 
     ggsave(
-        paste0("main_vs_top_", forecast_type, ".png"),
+        paste0(OUTPUT_DIR, "/", "main_vs_top_", forecast_type, ".png"),
         p,
         width = 16,
         height = 9,
@@ -139,7 +143,7 @@ plot_distr_of_gc_questions <- function(data, forecast_type) {
         theme_minimal()
 
     ggsave(
-        paste0("distribution_gc_questions_", forecast_type, ".png"),
+        paste0(OUTPUT_DIR, "/", "distribution_gc_questions_", forecast_type, ".png"),
         p,
         width = 16,
         height = 9,
@@ -153,9 +157,9 @@ plot_distr_of_gc_questions <- function(data, forecast_type) {
 #' @param data A dataframe containing the Granger causality results.
 #' @param univariate A boolean indicating if the data is from univariate analysis.
 #' @return A tibble object.
-create_report_table <- function(data, univariate = TRUE) {
+create_report_table <- function(data, univariate = TRUE, forecast_types = "simple") {
     cols <- c(
-        "industry_code"
+        "industry"
     )
     if (univariate) {
         cols <- c(cols, "question")
@@ -168,20 +172,30 @@ create_report_table <- function(data, univariate = TRUE) {
     )
     print(cols)
 
-    data %>%
+    d <- data %>%
         group_by(industry_code) %>%
         filter(causal == TRUE & full_model_adj_r2 == max(full_model_adj_r2)) %>%
         ungroup() %>%
         arrange(desc(diff_adj_r2)) %>%
+        mutate(industry = i_map[industry_code]) %>%
         select(all_of(cols))
+
+    if (univariate) {
+        d <- d %>%
+            mutate(question = q_map[question]) %>%
+            select(all_of(cols))
+    }
+
+    write_csv(
+        d,
+        paste0(OUTPUT_DIR, "/", ifelse(univariate, "univariate", "multivariate"), "_report_table_", forecast_types, ".csv"),
+    )
 }
 
 ifo_tbl <- load_and_preprocess_data(UNIVARIATE_LEVELS)
 ifo_tbl_univariate <- ifo_tbl %>% filter(industry_code != "C0000000")
 
-main_kld <- get_ts_by_question("KLD", ifo_tbl) %>%
-    select("C0000000") %>%
-    pull("C0000000")
+main_kld <- get_ts_by_question(ifo_tbl, "KLD") %>% pull("C0000000")
 
 
 
@@ -204,24 +218,23 @@ create_all_artifacts <- function(forecast_type) {
     )
     adj_r2_plot_f(granger_univariate_tbl, forecast_type)
     plot_distr_of_gc_questions(granger_univariate_tbl, forecast_type)
-    univariate_report_table <- create_report_table(granger_univariate_tbl, TRUE)
+    create_report_table(granger_univariate_tbl, TRUE, forecast_type)
 
     granger_multivariate_tbl <- multivariate_granger_main(ifo_tbl, forecast_type)
-    multivariate_report_table <- create_report_table(granger_multivariate_tbl, FALSE)
+    create_report_table(granger_multivariate_tbl, FALSE, forecast_type)
 
     top_ts <- granger_univariate_tbl %>%
         filter(causal == TRUE) %>%
         slice_max(diff_adj_r2, n = 1) %>%
         pull(industry_code)
     plot_cluster_with_main(ifo_tbl, top_ts, "C0000000", forecast_type)
-    return(univariate_report_table, multivariate_report_table)
 }
 
 
 
 forecast_types <- c("simple", "instantaneous")
 
-purrr::map(
+purrr::walk(
     forecast_types,
     create_all_artifacts
 )
