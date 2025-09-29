@@ -6,18 +6,21 @@ date: "2025-08-15"
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+library("here")
+knitr::opts_knit$set(root.dir = here::here())
 ```
 
-```{r install packages, include=FALSE}
-source("utils/setup_packages.R")
+```{r install packages, include=TRUE}
+source(here("utils/setup_packages.R"))
 install_packages_from_file()
 ```
 
 ```{r source util functions, include=FALSE}
-source("utils/load_data.R")
-source("LagAnalysis/lag_utils.R")
-source("LagAnalysis/lag_functions.R")
-source("LagAnalysis/stationarity_cointegration.R")
+source(here("utils/load_data.R"))
+source(here("LagAnalysis/lag_utils.R"))
+source(here("LagAnalysis/lag_functions.R"))
+source(here("LagAnalysis/stationarity_cointegration.R"))
 ```
 
 ```{r libraries, include=FALSE}
@@ -35,18 +38,28 @@ library("glmnet")
 
 ```{r Data Import, include=FALSE}
 # Full Analysis Data
-ccf_tbl_full <- read_csv("LagAnalysis/results/ccf_results_full.csv")
-ccf_tbl_full_peak <- read_csv("LagAnalysis/results/ccf_results_full_peak.csv")
-dcor_tbl_full <- read_csv("LagAnalysis/results/dcor_results_full.csv")
-dcor_tbl_full_peak <- read_csv("LagAnalysis/results/dcor_results_full_peak.csv")
-adf_tbl_full <- read_csv("LagAnalysis/results/adf_results_full.csv")
+ccf_tbl_full <- read_csv(
+  here("LagAnalysis/results/ccf_results_full.csv"))
+ccf_tbl_full_peak <- read_csv(
+  here("LagAnalysis/results/ccf_results_full_peak.csv"))
+dcor_tbl_full <- read_csv(
+  here("LagAnalysis/results/dcor_results_full.csv"))
+dcor_tbl_full_peak <- read_csv(
+  here("LagAnalysis/results/dcor_results_full_peak.csv"))
+adf_tbl_full <- read_csv(
+  here("LagAnalysis/results/adf_results_full.csv"))
 
 # Rolling Window Analysis Data
-ccf_tbl_roll <- read_csv("LagAnalysis/results/ccf_results_roll.csv") 
-ccf_tbl_roll_peak <- read_csv("LagAnalysis/results/ccf_results_roll_peak.csv")
-dcor_tbl_roll <- read_csv("LagAnalysis/results/dcor_results_roll.csv")
-dcor_tbl_roll_peak <- read_csv("LagAnalysis/results/dcor_results_roll_peak.csv")
-adf_tbl_roll <- read_csv("LagAnalysis/results/adf_results_roll.csv")
+ccf_tbl_roll <- read_csv(
+  here("LagAnalysis/results/ccf_results_roll.csv")) 
+ccf_tbl_roll_peak <- read_csv(
+  here("LagAnalysis/results/ccf_results_roll_peak.csv"))
+dcor_tbl_roll <- read_csv(
+  here("LagAnalysis/results/dcor_results_roll.csv"))
+dcor_tbl_roll_peak <- read_csv(
+  here("LagAnalysis/results/dcor_results_roll_peak.csv"))
+adf_tbl_roll <- read_csv(
+  here("LagAnalysis/results/adf_results_roll.csv"))
 ```
 
 
