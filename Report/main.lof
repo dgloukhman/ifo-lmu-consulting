@@ -1,0 +1,25 @@
+\contentsline {figure}{\numberline {1}{\ignorespaces ifo Business Climate Index over the period considered in this analysis.}}{1}{figure.caption.4}%
+\contentsline {figure}{\numberline {2}{\ignorespaces Number of industry codes by sector and hierarchical level.}}{5}{figure.caption.7}%
+\contentsline {figure}{\numberline {3}{\ignorespaces Comparison of stationarity across time windows and questions.}}{6}{figure.caption.8}%
+\contentsline {figure}{\numberline {4}{\ignorespaces Comparison of median cross-correlation and distance-correlation profiles across industries.}}{7}{figure.caption.9}%
+\contentsline {figure}{\numberline {5}{\ignorespaces 10-year rolling window analysis (1-month step), 2000--2025.}}{8}{figure.caption.10}%
+\contentsline {figure}{\numberline {6}{\ignorespaces Peak distance correlation by question, with median and inter-quantile ranges, Levels 1--3.}}{8}{figure.caption.11}%
+\contentsline {figure}{\numberline {7}{\ignorespaces Distribution of peak distance correlations by sector.}}{9}{figure.caption.12}%
+\contentsline {figure}{\numberline {8}{\ignorespaces Distribution of peak distance correlations by hierarchical level.}}{10}{figure.caption.13}%
+\contentsline {figure}{\numberline {9}{\ignorespaces Rolling-window distribution of peak distance correlations by level.}}{10}{figure.caption.14}%
+\contentsline {figure}{\numberline {10}{\ignorespaces Consensus of top-30 sets (Jaccard index) vs.\ union size over time.}}{12}{figure.caption.15}%
+\contentsline {figure}{\numberline {11}{\ignorespaces Distribution across questions indicating instantaneous Granger causality.}}{14}{figure.caption.16}%
+\contentsline {figure}{\numberline {12}{\ignorespaces Adjusted $R^2$ differences (univariate).}}{15}{figure.caption.17}%
+\contentsline {figure}{\numberline {13}{\ignorespaces Main index vs.\ top-performing industry}}{17}{figure.caption.20}%
+\contentsline {figure}{\numberline {14}{\ignorespaces Distribution across questions indicating simple Granger causality.}}{18}{figure.caption.21}%
+\contentsline {figure}{\numberline {15}{\ignorespaces Adjusted $R^2$ differences (univariate).}}{19}{figure.caption.22}%
+\contentsline {figure}{\numberline {16}{\ignorespaces Prediction performance (Prediction Set).}}{21}{figure.caption.24}%
+\contentsline {figure}{\numberline {17}{\ignorespaces Prediction performance of different models (Prediction Set).}}{23}{figure.caption.28}%
+\contentsline {figure}{\numberline {18}{\ignorespaces Prediction performance of different models (Early Prediction Set).}}{25}{figure.caption.32}%
+\contentsline {figure}{\numberline {19}{\ignorespaces Comparison of median cross-correlation profiles across industries for the Prediction Set. Yellow boxes indicate peak lags; vertical dashed line marks zero.}}{25}{figure.caption.33}%
+\contentsline {figure}{\numberline {20}{\ignorespaces Comparison of median cross-correlation profiles across industries for the Early Prediction Set (lead 4--6 months).}}{26}{figure.caption.34}%
+\contentsline {figure}{\numberline {21}{\ignorespaces Distribution of $R^2$ across 500 random 5-code subsets, with benchmark (lagged main index), Elastic Net, and Scoring Model overlaid.}}{26}{figure.caption.35}%
+\contentsline {figure}{\numberline {22}{\ignorespaces Mean CCFs of the top 5 cluster averages.}}{29}{figure.caption.39}%
+\contentsline {figure}{\numberline {23}{\ignorespaces Main index (blue) vs individual series in cluster 3.}}{29}{figure.caption.40}%
+\contentsline {figure}{\numberline {24}{\ignorespaces Bry-Boschan Turning Points of the main index.}}{31}{figure.caption.42}%
+\contentsline {figure}{\numberline {25}{\ignorespaces Turning points of group of all level 1 series with roughly composite moving characteristics according to their peak CCF lag value.}}{33}{figure.caption.44}%

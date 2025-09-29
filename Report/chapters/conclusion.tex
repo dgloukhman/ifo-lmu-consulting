@@ -1,0 +1,22 @@
+This consulting project examined the internal structures of the ifo Business Survey (1991–2025) with the aim of detecting systematic relationships between the main index and the underlying time series. Rather than building a full forecasting model, the focus was on identifying small \emph{predictive subsets} of industries which stick out as especially important for the overall index. We find strong correlations with clear lead–lag structures within $\pm6$ months that compress during crises, pointing to their role as early stress signals. While most industries are Granger causal, their individual contribution is negligible, which emphasizes the importance of subsets and clusters. The time series showing up across the various grouping and clustering approaches of our analysis often contained industries which are rather early in the supply chain or investment related. 
+
+\paragraph{Correlation Analysis}
+The analysis reveals strong dependencies between industry indicators and the main manufacturing index, concentrated within a $\pm6$ month window. Despite sectoral imbalance and non-stationarity, the correlation structure remains coherent and economically meaningful. Consensus results further show that correlations compress during crises, suggesting that shifts in industry alignment may provide early signals of systemic stress and warrant deeper investigation.
+
+\paragraph{Granger Causality}
+Almost all manufacturing industries are Granger causal (simple and instantaneous) to the aggregate main-index. The contribution of any single industry is minimal in terms of information gain measured by adjusted $R^2$. Additionally an implicit requirement for Granger causality is stationarity which is violated in some survey questions and industries (see \ref{stationarity}). Thus, we find this method to be rather unsuitable for further analysis and insights. 
+
+\paragraph{Elastic Net vs.\ Scoring Model.}
+Both methods improve on the benchmark of lagged main-index values. Compared to 500 random five-industry subsets, they perform better in the early prediction set, likely because overfitting is harder there, while the general prediction set leaves more scope for spurious fit. Although the exact industry codes differ, both approaches consistently select sectors linked to inputs, packaging, and investment goods. From an economic perspective, these sectors are upstream in the value chain and therefore tend to adjust production earlier, making them natural candidates for anticipating aggregate manufacturing dynamics.
+
+\paragraph{CCF clustering.}
+We also clustered individual survey questions (level 2) by their cross-correlation with the main index. To compare the clusters, we fitted linear models with lagged values of cluster average cluster and lagged values of the main index itself to the main index. We combined it with visually assessing the cross-correlation function to identify potentially leading and interesting clusters. 
+Especially the early prediction setting brought out some leading clusters. While many clusters are hard to interpret, clearer examples feature intermediate goods and investment-related activities. 
+
+\paragraph{Turning points.}
+Trying to explicitly indicate turning points and not just the main index itself was evaluated separately. We used the Bry-Boschan algorithm to identify turning points of the main index and Markov Switching models for potentially indicating turning points of the subseries. Neither individual nor grouped series were able to reliably indicate the Bry-Boschan turning points of the main index, when modeling their levels with Markov Switching. Further smoothing the series and applying Markov switching models to model the first differences or other more sophisticated approaches could be examined in further analysis. 
+
+\paragraph{Outlook.}
+Taken together, the results show that the underlying time series of the ifo Business climate are able to provide meaningful information beyond the main index alone. Future work could explore the data in greater depth, as many of our results suggested points to further elaborate on. Also, our analysis was restricted to the monthly questions of the manufacturing industry. Taking all of the 40.000 time series of the survey into account, could lead to many more insights. 
+
+

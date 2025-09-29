@@ -1,0 +1,221 @@
+\documentclass[12pt]{article}
+
+\usepackage[]{graphicx}
+\usepackage[]{color}
+\usepackage{alltt}
+\usepackage{subcaption}
+\usepackage{float}   % in the preamble
+
+
+%for longtable
+\usepackage{longtable}
+
+
+\newcommand{\mytitle}{Uncovering Structural Relations in the ifo Business
+Survey}
+\newcommand{\myname}{Jakob Freytag, Daniel Gloukhman, Dominik Pitz}
+
+
+\usepackage[a4paper, width = 160mm, top = 35mm, bottom = 30mm, 
+bindingoffset = 0mm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{ragged2e}
+\usepackage{xcolor}
+\usepackage{amsthm}
+\theoremstyle{plain}
+
+\theoremstyle{definition}
+\newtheorem{defn}{Definition}[section]
+\usepackage[round, comma]{natbib}
+\usepackage{fancyhdr}
+\newcommand{\changefont}{%
+    \fontsize{8}{11}\selectfont
+}
+       % For professional-looking tables
+     % To allow tables to span multiple pages
+
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{tabularx}
+\hypersetup{
+  colorlinks = true,
+  linkcolor = black,
+  urlcolor = black,
+  citecolor = black}
+\pagestyle{fancy}
+\fancyhead{}
+\fancyhead[R]{\changefont{\mytitle}}
+\fancyfoot{}
+\fancyfoot[R]{\thepage}
+\setlength{\headheight}{14.5pt}
+\setlength{\parindent}{0pt}
+\interfootnotelinepenalty = 10000
+
+
+\begin{document}
+
+
+% FRONT PAGE -------------------------------------------------------------------
+ 
+\begin{titlepage}
+\begin{center}
+    
+\LARGE
+Consulting Project Report
+
+\vspace{0.5cm}
+      
+\rule{\textwidth}{1.5pt}
+\LARGE
+\textbf{\mytitle}
+\rule{\textwidth}{1.5pt}
+   
+\vspace{0.5cm}
+      
+\large
+Department of Statistics \\
+Ludwig-Maximilians-Universität München 
+
+\vfill
+
+\Large
+\textbf{\myname}
+
+\vfill
+
+\large
+Munich, August 22\textsuperscript{th}, 2025
+      
+\vfill
+
+\includegraphics[width = 0.4\textwidth]{sigillum.png}
+
+\vfill
+
+\normalsize
+
+Project Parter: Dr. Klaus Wohlrabe, ifo Institute \\
+Supervised by Dr. Fabian Scheipl, LMU 
+
+\end{center}
+\end{titlepage}
+
+
+
+\pagenumbering{Roman}
+\newpage
+
+\begin{abstract}
+The ifo Business Survey is a monthly poll conducted by the ifo Institute
+for Economic Research in Germany, gathering responses to self-assessment questions on topics such as business
+expectation or current situation from multiple companies 
+across different sectors. Its most popular indicator is the ifo Business Climate Index, aggregating the business sentiment across all industries.
+While the index is well-established as a leading indicator, the full potential of
+the time series of the underlying sub-aggregates remains largely unexplored.
+This report accompanies the consulting project, in which we aimed to uncover potential relationships by taking a closer look
+at the manufacturing industry, whose business climate is closely linked to the
+main index. By analyzing the industry’s sub-aggregates over time, we examine how their interactions with the manufacturing business climate evolve
+and whether certain sub-aggregates can serve as early indicators of turning
+points. Detecting such patterns could enhance the economic assessments accompanying the monthly release of the ifo Business Climate Index. \\
+We begin with a comprehensive correlation analysis to map the relationships between individual industries and the main manufacturing index. These relationships are further examined by a Granger causality analysis, where we find that when formally tested, almost all individual subseries are Granger causal, but their information gain is negligible. We then use different approaches to identify subsets which seem to be especially indicative, such as an elastic net, a scoring model and clustering based on their cross-correlation function with the main index. At last, we asses, whether we can predict economic turning points of the main index, using Markov Switching models applied to the sub-aggregates. In this setting, neither individual, nor grouped series were able to meaningfully indicate the main turning points.  
+\end{abstract}
+
+
+\newpage
+\tableofcontents
+
+%%%% if you would want to include material overview
+%%%% use one of the following in addition
+\newpage
+\listoffigures
+\newpage
+\listoftables
+\newpage
+
+
+% CHAPTERS ---------------------------------------------------------------------
+\pagenumbering{arabic}
+    
+
+
+%--------------------------------------------------------------------------------
+\section{Introduction}
+\label{ch:intro}
+\input{chapters/introduction}
+\newpage
+%--------------------------------------------------------------------------------
+
+%--------------------------------------------------------------------------------
+\section{Correlation Analysis}
+\label{ch:corr}
+\input{chapters/correlation}
+\newpage
+%--------------------------------------------------------------------------------
+-----------------------------------------------------------------
+\section{Granger Causality}
+\label{ch:granger causallity}
+\input{chapters/indication}
+\newpage
+%--------------------------------------------------------------------------------
+
+%--------------------------------------------------------------------------------
+\section{Indicative Subsets}
+\label{ch:ind_subsets}
+\input{chapters/indicativesubsets}
+\newpage
+%--------------------------------------------------------------------------------
+
+
+%--------------------------------------------------------------------------------
+\section{Turning Point Indication}
+\label{ch:turning_point}
+\input{chapters/turningpoint}
+\newpage
+%--------------------------------------------------------------------------------
+
+%--------------------------------------------------------------------------------
+\section{Conclusion}
+\label{ch:conclusion}
+\input{chapters/conclusion}
+\newpage
+%--------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------
+\section{Contributions}
+\label{ch:contributions}
+\input{chapters/contributions}
+\newpage
+%--------------------------------------------------------------------------------
+
+%--------------------------------------------------------------------------------
+\section{Appendix}
+\label{ch:appendix}
+\input{chapters/appendix}
+\newpage
+%--------------------------------------------------------------------------------
+
+
+%--------------------------------------------------------------------------------
+\pagenumbering{Roman}
+\setcounter{page}{4} % CHANGE
+
+
+\clearpage
+
+\bibliographystyle{dcu}
+\bibliography{bibliography}
+
+\clearpage
+
+\section{Electronic Supplement}
+The source-code for this report and the statistical analysis can be found on Github at \href{https://github.com/dgloukhman/ifo-lmu-consulting}{https://github.com/dgloukhman/ifo-lmu-consulting}. The survey data is not public and can be obtained from the ifo Institute. 
+
+
+\end{document}

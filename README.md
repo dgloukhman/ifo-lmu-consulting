@@ -29,6 +29,8 @@ The data used in these analyses represents only a subset of the [ifo Business Su
 
 - `TurningPointIndications` : This section describes the scripts used for identifying leading indicators for business cycle turning points. The main goal is to find sub-series from the IFO survey that can predict turning points in the main manufacturing business climate index in real-time.
 
+- `Report`: contains the report as a pdf and its source-code
+
 Every Folder contains its own `README.md`
 
 ## Authors

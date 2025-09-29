@@ -1,0 +1,45 @@
+\contentsline {section}{\numberline {1}Introduction}{1}{section.1}%
+\contentsline {subsubsection}{\numberline {1.0.1}Data}{1}{subsubsection.1.0.1}%
+\contentsline {section}{\numberline {2}Correlation Analysis}{4}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Analysis Setup}{4}{subsection.2.1}%
+\contentsline {subsubsection}{\numberline {2.1.1}Correlation Analysis Approach}{4}{subsubsection.2.1.1}%
+\contentsline {subsubsection}{\numberline {2.1.2}Data Structure}{4}{subsubsection.2.1.2}%
+\contentsline {subsubsection}{\numberline {2.1.3}Stationarity}{5}{subsubsection.2.1.3}%
+\contentsline {subsubsection}{\numberline {2.1.4}Correlation Metrics}{6}{subsubsection.2.1.4}%
+\contentsline {subsection}{\numberline {2.2}Correlation Distribution}{7}{subsection.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.1}Correlation Distribution by Time}{7}{subsubsection.2.2.1}%
+\contentsline {subsubsection}{\numberline {2.2.2}Correlation Distribution by Sector}{9}{subsubsection.2.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.3}Correlation Distribution by Level}{10}{subsubsection.2.2.3}%
+\contentsline {subsection}{\numberline {2.3}Consensus Analysis}{11}{subsection.2.3}%
+\contentsline {section}{\numberline {3}Granger Causality}{13}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Methodology}{13}{subsection.3.1}%
+\contentsline {subsubsection}{\numberline {3.1.1}Motivation and Definition}{13}{subsubsection.3.1.1}%
+\contentsline {subsubsection}{\numberline {3.1.2}Testing for Granger Causality}{13}{subsubsection.3.1.2}%
+\contentsline {subsection}{\numberline {3.2}Results}{13}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}Instantaneous Granger Causality}{13}{subsubsection.3.2.1}%
+\contentsline {subsubsection}{\numberline {3.2.2}Simple Granger Causality}{17}{subsubsection.3.2.2}%
+\contentsline {subsection}{\numberline {3.3}Conclusion for Granger Causality}{19}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Indicative Subsets}{20}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Elastic Net}{20}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Scoring Model}{20}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Model Performance}{21}{subsection.4.3}%
+\contentsline {subsubsection}{\numberline {4.3.1}Prediction Set}{22}{subsubsection.4.3.1}%
+\contentsline {subsubsection}{\numberline {4.3.2}Early Prediction Set}{23}{subsubsection.4.3.2}%
+\contentsline {subsubsection}{\numberline {4.3.3}Performance Comparison and Interpretation}{25}{subsubsection.4.3.3}%
+\contentsline {subsection}{\numberline {4.4}Clustering based on CCF}{28}{subsection.4.4}%
+\contentsline {subsubsection}{\numberline {4.4.1}Comparing cluster groups}{28}{subsubsection.4.4.1}%
+\contentsline {subsubsection}{\numberline {4.4.2}Exemplary Cluster}{29}{subsubsection.4.4.2}%
+\contentsline {section}{\numberline {5}Turning Point Indication}{31}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Markov-Regime-Switching}{31}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Classification Task}{32}{subsection.5.2}%
+\contentsline {subsubsection}{\numberline {5.2.1}Grouped Series - Flipped}{32}{subsubsection.5.2.1}%
+\contentsline {section}{\numberline {6}Conclusion}{34}{section.6}%
+\contentsline {paragraph}{Correlation Analysis}{34}{section*.46}%
+\contentsline {paragraph}{Granger Causality}{34}{section*.47}%
+\contentsline {paragraph}{Elastic Net vs.\ Scoring Model.}{34}{section*.48}%
+\contentsline {paragraph}{CCF clustering.}{34}{section*.49}%
+\contentsline {paragraph}{Turning points.}{35}{section*.50}%
+\contentsline {paragraph}{Outlook.}{35}{section*.51}%
+\contentsline {section}{\numberline {7}Contributions}{36}{section.7}%
+\contentsline {section}{\numberline {8}Appendix}{37}{section.8}%
+\contentsline {section}{\numberline {9}Electronic Supplement}{IV}{section.9}%
