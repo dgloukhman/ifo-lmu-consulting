@@ -1,6 +1,11 @@
+# Forecasting/report.R
+# This script contains the code to reproduce the visualizations and tables for the Indication chapter of the report.
 # Load ggplot2 for plotting
+
 source("utils/setup_packages.R")
 install_packages_from_file()
+
+library(here)
 source(here("Forecasting", "helper.R"))
 source(here("Forecasting", "univariate.R"))
 library(ggplot2)
@@ -143,6 +148,34 @@ plot_distr_of_gc_questions <- function(data, forecast_type) {
     p
 }
 
+#' Create a report table from Granger causality results
+#'
+#' @param data A dataframe containing the Granger causality results.
+#' @param univariate A boolean indicating if the data is from univariate analysis.
+#' @return A tibble object.
+create_report_table <- function(data, univariate = TRUE) {
+    cols <- c(
+        "industry_code"
+    )
+    if (univariate) {
+        cols <- c(cols, "question")
+    }
+
+    cols <- c(
+        cols,
+        "lag",
+        "diff_adj_r2"
+    )
+    print(cols)
+
+    data %>%
+        group_by(industry_code) %>%
+        filter(causal == TRUE & full_model_adj_r2 == max(full_model_adj_r2)) %>%
+        ungroup() %>%
+        arrange(desc(diff_adj_r2)) %>%
+        select(all_of(cols))
+}
+
 ifo_tbl <- load_and_preprocess_data(UNIVARIATE_LEVELS)
 ifo_tbl_univariate <- ifo_tbl %>% filter(industry_code != "C0000000")
 
@@ -153,35 +186,42 @@ main_kld <- get_ts_by_question("KLD", ifo_tbl) %>%
 
 
 
-forecast_type <- "instantaneous"
-granger_univariate_tbl <- granger_main(
-    forecast_type = forecast_type,
-    main_kld = main_kld,
-    ifo_tbl = ifo_tbl_univariate,
-    questions = setdiff(names(ifo_tbl_univariate), c("date", "industry_code", "level"))
+#' @description
+#' Generates all necessary artifacts for a given forecast type.
+#' This function orchestrates the creation of outputs such as plots, tables,
+#' and reports based on the specified forecasting method.
+#'
+#' @param forecast_type Character string indicating the type of forecast to process.
+#' Supported values depend on the implementation details.
+#'
+#' @return Tuple of tibbles. Side effects include creation of files and/or visualizations.
+create_all_artifacts <- function(forecast_type) {
+    granger_univariate_tbl <- granger_main(
+        forecast_type = forecast_type,
+        main_kld = main_kld,
+        ifo_tbl = ifo_tbl_univariate,
+        questions = setdiff(names(ifo_tbl_univariate), c("date", "industry_code", "level"))
+    )
+    adj_r2_plot_f(granger_univariate_tbl, forecast_type)
+    plot_distr_of_gc_questions(granger_univariate_tbl, forecast_type)
+    univariate_report_table <- create_report_table(granger_univariate_tbl, TRUE)
+
+    granger_multivariate_tbl <- multivariate_granger_main(ifo_tbl, forecast_type)
+    multivariate_report_table <- create_report_table(granger_multivariate_tbl, FALSE)
+
+    top_ts <- granger_univariate_tbl %>%
+        filter(causal == TRUE) %>%
+        slice_max(diff_adj_r2, n = 1) %>%
+        pull(industry_code)
+    plot_cluster_with_main(ifo_tbl, top_ts, "C0000000", forecast_type)
+    return(univariate_report_table, multivariate_report_table)
+}
+
+
+
+forecast_types <- c("simple", "instantaneous")
+
+purrr::map(
+    forecast_types,
+    create_all_artifacts
 )
-adj_r2_plot_f(granger_univariate_tbl, forecast_type)
-plot_distr_of_gc_questions(granger_univariate_tbl, forecast_type)
-top_ts <- granger_univariate_tbl %>%
-    filter(causal == TRUE) %>%
-    slice_max(diff_adj_r2, n = 1) %>%
-    pull(industry_code)
-plot_cluster_with_main(ifo_tbl, top_ts, "C0000000", forecast_type)
-
-
-
-forecast_type <- "simple"
-granger_univariate_tbl <- granger_main(
-    forecast_type = forecast_type,
-    main_kld = main_kld,
-    ifo_tbl = ifo_tbl_univariate,
-    questions = setdiff(names(ifo_tbl_univariate), c("date", "industry_code", "level"))
-)
-adj_r2_plot_f(granger_univariate_tbl, forecast_type)
-plot_distr_of_gc_questions(granger_univariate_tbl, forecast_type)
-
-top_ts <- granger_univariate_tbl %>%
-    filter(causal == TRUE) %>%
-    slice_max(diff_adj_r2, n = 1) %>%
-    pull(industry_code)
-plot_cluster_with_main(ifo_tbl, top_ts, "C0000000", forecast_type)
