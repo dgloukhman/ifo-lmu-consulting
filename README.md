@@ -1,10 +1,16 @@
 # ifo-timeseries
 
+This repository contains the code used for the consulting project 'Uncovering Structural Relations in the ifo Business Survey', with multiple different analysis in the corresponding folders. 
+
 ## General
 
 - Folder Data contains all data files (need to be added locally)
 - packages.txt contains all packages (packages are installed automatically)
 - utils contains utility scripts (data loader and package loader)
+
+## Running 
+- We use the 'here' package to avoid path issues. Make sure that its installed/loaded beforehand, the rest is done via `install_packages_from_file()`
+- Some parts are computationally more intensive and might take several hours to run. For this, (intermediate) results with typical settings are stored as .csv in the Data folder, for a simple quick run. They need to be added locally. 
 
 
 ## Correlation Analysis
@@ -33,16 +39,3 @@ This directory contains R scripts for performing univariate and multivariate Gra
 - `multivariate.R`: Conducts a multivariate Granger causality analysis. It uses all available questions for a given industry as a combined set of predictors for the main KLD time series.
 - `plotting.R`: Generates various plots to visualize the results from the analysis, including comparisons of adjusted R-squared values, time series plots, and distributions of causal relationships.
 - `inter-timeseries-exploration.R`: Contains an exploratory analysis of inter-time series relationships using Granger causality. This script was not used in the final report but is kept for reference.
-
-
-## Turning Point Indication Analysis
-
-This section describes the scripts used for identifying leading indicators for business cycle turning points. The main goal is to find sub-series from the IFO survey that can predict turning points in the main manufacturing business climate index in real-time.
-
-- `TurningPointMain.R`: This is the main script for the analysis. It identifies turning points in the main index using the Bry-Boschan algorithm as a benchmark. Then, it computes real-time turning point signals for sub-series using Markov-Switching models. It evaluates individual sub-series and also groups of sub-series to create a composite indicator, which is then evaluated.
-- `turningpoint_utils.R`: Contains all the core utility functions for the turning point analysis. This includes functions for the Bry-Boschan algorithm, Markov-Switching models, signal evaluation, and grouping of series.
-- `BB_TurningPoints.R`: A script focused on the main business climate index. It identifies turning points using both the Bry-Boschan algorithm and a Markov-Switching model and compares them in a plot.
-- `TP_UnusedStuff/`: This directory contains various scripts from earlier, exploratory stages of the analysis. They are not part of the final workflow but are kept for reference.
-
-Run Order:
-The analysis can be run via `TurningPointMain.R`. `BB_TurningPoints.R` can be run independently for its specific comparison plot.

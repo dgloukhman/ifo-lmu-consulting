@@ -81,7 +81,7 @@ ifo_long <- ifo_subset_two_digits %>%
     values_to = "value"
   )
 
-ifo_probs_two_digit <- read.csv('/Users/jakobfreytag/Desktop/R Directionaries/ifo_probs_backup/ifo_probs_two_digits.csv')
+ifo_probs_two_digit <- read.csv(paste0(data_path, '/turningpoint_intermediate/ifo_probs_two_digits.csv'))
 # group by by industries & questions and get markov probabilities (takes a while)
 #ifo_probs_two_digit <- ifo_long %>%
 #  group_by(industry_code, question_code) %>%
