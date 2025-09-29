@@ -67,28 +67,23 @@ get_markov_probabilities <- function(values, dates, smooth_probs = FALSE) {
     y_lag = coredata(lagged_values)[-1]
   )
   
-  # fit AR(1) via lm
-  lm_ar1 <- lm(y ~ y_lag, data = df)
-  
   # simple model with intercept only
-  #lm <- lm(values ~ 1)
+  lm <- lm(values ~ 1)
   
-  sw <- c(TRUE, TRUE, TRUE) # vector for msm, allowing mean to change but constant variance
-  msm_model <- MSwM::msmFit(lm_ar1, k = 2, sw = sw)
+  sw <- c(TRUE, FALSE) # vector for msm, allowing mean to change but constant variance
+  msm_model <- NULL
   
   # run 3 times due to unstable estimation sometimes, making sure that differences are big enough
- # msm_model <- NULL
-  #msm_model <- MSwM::msmFit(lm, k =2, sw =sw)
-  
-  #for(i in 1:3) {
-  #  temp_model <- MSwM::msmFit(lm, k =2, sw =sw)
+  for(i in 1:3) {
+    temp_model <- MSwM::msmFit(lm, k =2, sw =sw)
     
     # compare difference of the two intercepts to threshold value of 5 (arbitrary)
-  #  if (abs(diff(temp_model@Coef[["(Intercept)"]])) < 5 & !is.null(msm_model)) next 
+     if (abs(diff(temp_model@Coef[["(Intercept)"]])) < 5 & !is.null(msm_model)) next 
     
     # keep model if differences are big enough to actually trace regime changes
-  #  msm_model <- temp_model    
-  #}
+    msm_model <- temp_model    
+  }
+  
   # extract index of bigger regime (expansion)
   exp_regime_index <- which.max(msm_model@Coef[["(Intercept)"]])
   
@@ -99,8 +94,7 @@ get_markov_probabilities <- function(values, dates, smooth_probs = FALSE) {
   } else {
     probs <-  msm_model@Fit@filtProb[,exp_regime_index]
   }
-  # placeholder for first element to align dates, when using AR(1) term
-  probs <- c(0.5, probs)
+
   return(probs)
 }
 
