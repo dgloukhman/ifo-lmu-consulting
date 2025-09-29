@@ -1,6 +1,7 @@
 # Load required packages and data
 source("utils/setup_packages.R")
 install_packages_from_file()
+library(here)
 source(here("utils", "load_data.R"))
 source(here("Forecasting", "config.R"))
 
