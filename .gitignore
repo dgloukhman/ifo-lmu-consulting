@@ -182,7 +182,7 @@ cython_debug/
 .Ruserdata
 .Rproj.user/
 *.Rproj
-.RDataTmp
+.RDataTmp*
 
 # Files
 JakobsTrials/

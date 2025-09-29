@@ -1,4 +1,4 @@
-install_packages_from_file <- function(file_path = "packages.txt", load = TRUE) {
+install_packages_from_file <- function(file_path = here("packages.txt"), load = TRUE) {
   if (!file.exists(file_path)) {
     stop("Package list file not found: ", file_path)
   }
