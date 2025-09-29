@@ -15,7 +15,7 @@ This directory contains R scripts for analyzing lead–lag structures in ifo Bus
 
 The scripts can be customized through parameters set within the analysis scripts themselves. Key elements include:
 
-- **Indicators**: Choice of survey questions (KLD, KLM, KLB, etc.) to include.  
+- **Indicators**: Choice of survey questions (KLD, GUS, etc.) to include.  
 - **Lag Settings**: Maximum lag order for cross-correlation analysis.  
 - **Rolling Windows**: Window size and step length for rolling lag analysis.  
 - **Stationarity Tests**: Selection of methods for testing unit roots and cointegration.  
@@ -30,7 +30,7 @@ The scripts can be customized through parameters set within the analysis scripts
    - **Note (partial results for testing):** The script is currently configured to process only a **subset** of rolling windows for faster debug runs (e.g., using `.[1:5]` after `group_split()`). This intentionally produces **partial** rolling results. Remove or disable this limitation before final runs (e.g., comment out the subsetting or guard it with a `DEBUG_ROLL <- FALSE` flag) to generate complete outputs.
 
 3. **Report Generation**  
-   Knit `lag_report.Rmd` to produce an HTML/PDF report summarizing results, figures, and interpretations.
+   Knit `lag_report.Rmd` to produce an HTML report summarizing results, figures, and interpretations.
 
 4. **(Optional) Stationarity & Cointegration**  
    While functions in `stationarity_cointegration.R` are already called from the lag analysis scripts, they can also be used independently for testing unit roots and cointegration among industry indices.
