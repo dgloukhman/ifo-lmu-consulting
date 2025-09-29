@@ -179,9 +179,7 @@ create_report_table <- function(data, univariate = TRUE) {
 ifo_tbl <- load_and_preprocess_data(UNIVARIATE_LEVELS)
 ifo_tbl_univariate <- ifo_tbl %>% filter(industry_code != "C0000000")
 
-main_kld <- get_ts_by_question("KLD", ifo_tbl) %>%
-    select("C0000000") %>%
-    pull("C0000000")
+main_kld <- get_ts_by_question("KLD", ifo_tbl) %>% pull("C0000000")
 
 
 
