@@ -39,27 +39,27 @@ library("glmnet")
 ```{r Data Import, include=FALSE}
 # Full Analysis Data
 ccf_tbl_full <- read_csv(
-  here("LagAnalysis/results/ccf_results_full.csv"))
+  here("Data/corr_results/ccf_results_full.csv"))
 ccf_tbl_full_peak <- read_csv(
-  here("LagAnalysis/results/ccf_results_full_peak.csv"))
+  here("Data/corr_results/ccf_results_full_peak.csv"))
 dcor_tbl_full <- read_csv(
-  here("LagAnalysis/results/dcor_results_full.csv"))
+  here("Data/corr_results/dcor_results_full.csv"))
 dcor_tbl_full_peak <- read_csv(
-  here("LagAnalysis/results/dcor_results_full_peak.csv"))
+  here("Data/corr_results/dcor_results_full_peak.csv"))
 adf_tbl_full <- read_csv(
-  here("LagAnalysis/results/adf_results_full.csv"))
+  here("Data/corr_results/adf_results_full.csv"))
 
 # Rolling Window Analysis Data
 ccf_tbl_roll <- read_csv(
-  here("LagAnalysis/results/ccf_results_roll.csv")) 
+  here("Data/corr_results/ccf_results_roll.csv")) 
 ccf_tbl_roll_peak <- read_csv(
-  here("LagAnalysis/results/ccf_results_roll_peak.csv"))
+  here("Data/corr_results/ccf_results_roll_peak.csv"))
 dcor_tbl_roll <- read_csv(
-  here("LagAnalysis/results/dcor_results_roll.csv"))
+  here("Data/corr_results/dcor_results_roll.csv"))
 dcor_tbl_roll_peak <- read_csv(
-  here("LagAnalysis/results/dcor_results_roll_peak.csv"))
+  here("Data/corr_results/dcor_results_roll_peak.csv"))
 adf_tbl_roll <- read_csv(
-  here("LagAnalysis/results/adf_results_roll.csv"))
+  here("Data/corr_results/adf_results_roll.csv"))
 ```
 
 
