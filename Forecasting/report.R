@@ -177,8 +177,14 @@ create_report_table <- function(data, univariate = TRUE, forecast_types = "simpl
         filter(causal == TRUE & full_model_adj_r2 == max(full_model_adj_r2)) %>%
         ungroup() %>%
         arrange(desc(diff_adj_r2)) %>%
-        mutate(industry = i_map[industry_code], question = q_map[question]) %>%
+        mutate(industry = i_map[industry_code]) %>%
         select(all_of(cols))
+
+    if (univariate) {
+        d <- d %>%
+            mutate(question = q_map[question]) %>%
+            select(all_of(cols))
+    }
 
     write_csv(
         d,
