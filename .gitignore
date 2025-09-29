@@ -192,6 +192,7 @@ Test.R
 LagAnalysis/temp_data/
 LagAnalysis/results/
 lag_report_files/
+output/
 
 
 # Ignore html outputs of Notebooks, as they dont render
