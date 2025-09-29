@@ -9,17 +9,13 @@
 
 ## Correlation Analysis
 
-- `lag_report.Rmd` contains the plots and final analysis etc.
-- `Folder LagAnalysis` contains copmutation scripts and result data
-- Computation is spread into `lag_analysis.R` and `lag_analysis_roll.R`
-- Functions for computation are in the scripts `lag_utils.R`, `lag_functions.R` and 
-stationarity_cointegration
-- Results are saved to `LagAnalysis/results folder` 
-
-Run Order:
-1) LagAnalysis/lag_analysis.R
-2) LagAnalysis/lag_analysis_roll.R
-3) lag_report.Rmd
+- `lag_report.Rmd`: RMarkdown report that compiles results, plots, and final analysis.  
+- `LagAnalysis/`: Directory with computation scripts and result data.  
+  - `lag_analysis.R`: Full-sample lag analysis.  
+  - `lag_analysis_roll.R`: Rolling-window lag analysis (currently set to run only on a subset of windows for testing/partial results).  
+  - `lag_utils.R`, `lag_functions.R`: Core and utility functions for analysis.  
+  - `stationarity_cointegration.R`: Functions for stationarity and cointegration testing (called within the analysis scripts but also usable independently).  
+- Results are saved to `Data/corr_results/`.  
 
 
 ## Forecasting Analysis

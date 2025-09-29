@@ -87,7 +87,7 @@ adf_results_roll <- ifo_tsbl_roll %>%
   as_tibble() %>%
   group_by(window_id) %>%
   group_split() %>%
-  #.[1:50] %>%                      # Option to limit input/run time for testing
+  .[1:5] %>%                      # Option to limit input/run time for testing
   future_map_dfr(~ {
     df <- .x
     run_adf_tests(df) %>%
@@ -99,11 +99,12 @@ adf_results_roll <- ifo_tsbl_roll %>%
 
 # Postprocessing of adf Results
 adf_results_roll <- adf_results_roll %>%
-  adf_postprocess()
+  adf_postprocess() %>%
+  mutate(ID = str_c(ID, date_window_end, sep = "_"))
 
 # Save Output as temp data file
-write_csv(adf_results_roll, "LagAnalysis/results/adf_results_roll.csv")
-# adf_results_roll <- read_csv("LagAnalysis/temp_data/adf_results_roll.csv")
+write_csv(adf_results_roll, here("Data/corr_results/adf_results_roll.csv"))
+# adf_results_roll <- read_csv(here("Data/corr_results/adf_results_roll.csv"))
 
 
 # ====================================================================
@@ -132,7 +133,7 @@ ccf_tbl_roll <- ifo_tsbl_roll %>%
   as_tibble() %>%
   group_by(window_id) %>%
   group_split() %>%
-  #.[1:50] %>%                      # Option to limit input/run time for testing
+  .[1:5] %>%                      # Option to limit input/run time for testing
   future_map_dfr(function(df) {
     end_date <- df$date_window_end[1]
     map_dfr(
@@ -167,9 +168,9 @@ ccf_tbl_roll_peak <- ccf_tbl_roll %>%
   ungroup()
 
 # Save Output as temp data file
-write_csv(ccf_tbl_roll, "LagAnalysis/results/ccf_results_roll.csv")
-write_csv(ccf_tbl_roll_peak, "LagAnalysis/results/ccf_results_roll_peak.csv")
-# ccf_tbl_roll <- read_csv("LagAnalysis/results/ccf_results_roll.csv")
+write_csv(ccf_tbl_roll, here("Data/corr_results/ccf_results_roll.csv"))
+write_csv(ccf_tbl_roll_peak, here("Data/corr_results/ccf_results_roll_peak.csv"))
+# ccf_tbl_roll <- read_csv(here("Data/corr_results/ccf_results_roll.csv"))
 
 
 # --------------------------------------------------------------------
@@ -180,7 +181,7 @@ dcor_tbl_roll <- ifo_tsbl_roll %>%
   as_tibble() %>%
   group_by(window_id) %>%
   group_split() %>%
-  #.[1:50] %>%                      # Option to limit input/run time for testing 
+  .[1:5] %>%                      # Option to limit input/run time for testing 
   future_map_dfr(function(df) {
     end_date <- df$date_window_end[1]
     map_dfr(
@@ -213,6 +214,6 @@ dcor_tbl_roll_peak <- dcor_tbl_roll %>%
   ungroup()
 
 # Save Output as temp data file
-write_csv(dcor_tbl_roll, "LagAnalysis/results/dcor_results_roll.csv")
-write_csv(dcor_tbl_roll_peak, "LagAnalysis/results/dcor_results_roll_peak.csv")
+write_csv(dcor_tbl_roll, here("Data/corr_results/dcor_results_roll.csv"))
+write_csv(dcor_tbl_roll_peak, here("Data/corr_results/dcor_results_roll_peak.csv"))
 # dcor_tbl_roll <- read_csv("LagAnalysis/results/dcor_results_roll.csv")

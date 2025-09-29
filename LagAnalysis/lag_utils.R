@@ -91,8 +91,7 @@ adf_postprocess <- function(adf_results_full) {
     mutate(
       difference = if_else(is.na(diff_part), 0L, as.integer(diff_part)),
       level = sapply(industry_code, get_level),
-      sector = str_sub(industry_code, 1, 3),
-      ID = str_c(ID, date_window_end, sep = "_")
+      sector = str_sub(industry_code, 1, 3)
     ) %>%
     select(-diff_part)
 }

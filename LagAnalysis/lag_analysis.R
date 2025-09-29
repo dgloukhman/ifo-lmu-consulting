@@ -75,7 +75,7 @@ adf_results_full <- adf_results_full %>%
   adf_postprocess()
 
 # Save Output as csv file
-write_csv(adf_results_full, "LagAnalysis/results/adf_results_full.csv")
+write_csv(adf_results_full, here("Data/corr_results/adf_results_full.csv"))
 
 
 # ====================================================================
@@ -121,8 +121,8 @@ ccf_results_full_peak <- ccf_results_full %>%
   ungroup()
 
 # Save Output as csv file
-write_csv(ccf_results_full, "LagAnalysis/results/ccf_results_full.csv")
-write_csv(ccf_results_full_peak, "LagAnalysis/results/ccf_results_full_peak.csv")
+write_csv(ccf_results_full, here("Data/corr_results/ccf_results_full.csv"))
+write_csv(ccf_results_full_peak, here("Data/corr_results/ccf_results_full_peak.csv"))
 
 # --------------------------------------------------------------------
 # Distance Correlation Analysis
@@ -150,5 +150,5 @@ dcor_results_full_peak <- dcor_results_full %>%
   ungroup()
 
 # Save Output as csv file
-write_csv(dcor_results_full, "LagAnalysis/results/dcor_results_full.csv")
-write_csv(dcor_results_full_peak, "LagAnalysis/results/dcor_results_full_peak.csv")
+write_csv(dcor_results_full, here("Data/corr_results/dcor_results_full.csv"))
+write_csv(dcor_results_full_peak, here("Data/corr_results/dcor_results_full_peak.csv"))
