@@ -198,3 +198,4 @@ lag_report_files/
 *.html
 *.htmlplots
 plots/*
+*.png
