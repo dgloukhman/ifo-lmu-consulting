@@ -15,17 +15,13 @@ This repository contains the code used for the consulting project 'Uncovering St
 
 ## Correlation Analysis
 
-- `lag_report.Rmd` contains the plots and final analysis etc.
-- `Folder LagAnalysis` contains copmutation scripts and result data
-- Computation is spread into `lag_analysis.R` and `lag_analysis_roll.R`
-- Functions for computation are in the scripts `lag_utils.R`, `lag_functions.R` and 
-stationarity_cointegration
-- Results are saved to `LagAnalysis/results folder` 
-
-Run Order:
-1) LagAnalysis/lag_analysis.R
-2) LagAnalysis/lag_analysis_roll.R
-3) lag_report.Rmd
+- `lag_report.Rmd`: RMarkdown report that compiles results, plots, and final analysis.  
+- `LagAnalysis/`: Directory with computation scripts and result data.  
+  - `lag_analysis.R`: Full-sample lag analysis.  
+  - `lag_analysis_roll.R`: Rolling-window lag analysis (currently set to run only on a subset of windows for testing/partial results).  
+  - `lag_utils.R`, `lag_functions.R`: Core and utility functions for analysis.  
+  - `stationarity_cointegration.R`: Functions for stationarity and cointegration testing (called within the analysis scripts but also usable independently).  
+- Results are saved to `Data/corr_results/`.  
 
 
 ## Forecasting Analysis
@@ -39,3 +35,4 @@ This directory contains R scripts for performing univariate and multivariate Gra
 - `multivariate.R`: Conducts a multivariate Granger causality analysis. It uses all available questions for a given industry as a combined set of predictors for the main KLD time series.
 - `plotting.R`: Generates various plots to visualize the results from the analysis, including comparisons of adjusted R-squared values, time series plots, and distributions of causal relationships.
 - `inter-timeseries-exploration.R`: Contains an exploratory analysis of inter-time series relationships using Granger causality. This script was not used in the final report but is kept for reference.
+
