@@ -117,7 +117,7 @@ preprocess_ifo_data <- function(df) {
   na_rows_df <- df[apply(is.na(df), 1, any), ]
 
   print('Preprocessing')
-  print('Filtered out all subaggregates with NaN values: (Temporary)')
+  print('Filtered out all subaggregates with NaN values:')
   print(unique(na_rows_df$industry_code))
 
   df <- df %>%
