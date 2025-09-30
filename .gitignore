@@ -200,3 +200,8 @@ output/
 *.htmlplots
 plots/*
 *.png
+
+# Exception for Report Plot Files
+!Report/DanielPlots/*.png
+!Report/DominikPlots/*.png
+!Report/*.png
